@@ -61,6 +61,66 @@ class Trader:
 
         return poly, lags, tau
 
+    def _ichimoku_indicator(
+        self,
+        data: pd.DataFrame,
+        tenkan: int = 9,
+        kijun: int = 26,
+        chiou: int = -26,
+        senkou_a: int = 26,
+        senkou_b: int = 52,
+        chikou: int | None = None,
+    ) -> pd.DataFrame:
+        """Implements Ichimoku momentum indicator.
+        It requires  5 different components.
+
+        1 - Tenkan-Sen aka Conversion line: midpoint of the last 9 candles.
+            Computed by adding highest high and lowest low over 9 different
+            periods and divided by 2.
+
+        2 - Kijun-Sen aka Base line: midpoint of the last 26 candlesticks.
+            Computed as Tenkan-Sen, but using 26 candlesticks.
+
+        3 - Chiou aka Lagging span: lags behind price with 26 periods.
+
+        4 - Senkou-A aka Leading span A: midpoint between the conversion line
+            and the base line. Computed as (Conversion Line + Base Line) / 2.
+            Plotted 26 periods in the future.
+
+        5 - Senjou-B aka Leading span B: midpoint as the leading span A, but
+            using 52 periods.
+
+        6 - (Optional) Chikou span: Closing prices plotted 26 periods back
+            in time.
+
+        """
+        required_keys = ["High", "Low"]
+        if all([key in data.keys() for key in required_keys]):
+            raise Exception("High or Low data not found")
+
+        ichimoku_data = data
+        # conversion line
+        tenkan_sen_high = data["High"].rolling(window=tenkan).max()
+        tenkan_sen_low = data["Low"].rolling(window=tenkan).min()
+        ichimoku_data["conversion_line"] = (tenkan_sen_high + tenkan_sen_low) / 2
+        # base line
+        kijun_sen_high = data["High"].rolling(window=kijun).max()
+        kijun_sen_low = data["Low"].rolling(window=kijun).min()
+        ichimoku_data["base_line"] = (kijun_sen_high + kijun_sen_low) / 2
+        # leading span A
+        leading_a = (
+            (ichimoku_data["conversion_line"] + ichimoku_data["base_line"]) / 2
+        ).shift(senkou_a)
+        ichimoku_data["leading_a"] = leading_a
+        # leading span B
+        leading_b_high = data["High"].rolling(window=senkou_b).max()
+        leading_b_low = data["Low"].rolling(window=senkou_b).min()
+        leading_b = ((leading_b_high + leading_b_low) / 2).shift(senkou_b)
+        ichimoku_data["leading_b"] = leading_b
+        # chikou (Not implemented)
+
+        return ichimoku_data
+
     def _get_acceptable_price(self, state, product, bandwidth):
         """Computes the acceptable price given a state, target
         and bandwitdth using Nadaraya-Watson estimator."""
@@ -118,7 +178,9 @@ class Trader:
             orders: list[Order] = []
 
             # Note that this value of 1 is just a dummy value, you should likely change it!
-            acceptable_price = 10000 # self._get_acceptable_price(state, product, bandwidth)
+            acceptable_price = (
+                10000  # self._get_acceptable_price(state, product, bandwidth)
+            )
 
             print(f"state = {state}")
             print(f"state.own_trades = {state.own_trades}")
@@ -126,34 +188,51 @@ class Trader:
 
             try:
                 if len(order_depth.sell_orders) > 0:
-                  trades = own_trades[product]
-                  acceptable_buy_price = min([trades[i].price for i in range(len(trades)) if trades[i].buyer == "SUBMISSION"])
+                    trades = own_trades[product]
+                    acceptable_buy_price = min(
+                        [
+                            trades[i].price
+                            for i in range(len(trades))
+                            if trades[i].buyer == "SUBMISSION"
+                        ]
+                    )
 
+                    if best_ask < acceptable_buy_price:
 
-                  if best_ask < acceptable_buy_price:
+                        # Calulating best ask price
+                        best_ask = min(order_depth.sell_orders.keys())
+                        best_ask_volume = order_depth.sell_orders[best_ask]
 
-                      # Calulating best ask price
-                      best_ask = min(order_depth.sell_orders.keys())
-                      best_ask_volume = order_depth.sell_orders[best_ask]
-
-                      print("BUY", str(-best_ask_volume) + "x", best_ask)
-                      orders.append(Order(product, best_ask, -best_ask_volume))
+                        print("BUY", str(-best_ask_volume) + "x", best_ask)
+                        orders.append(Order(product, best_ask, -best_ask_volume))
 
                 if len(order_depth.buy_orders) > 0:
 
-                  # calculating minimum selling price per share (i.e total amount of shares / no. of shares)
-                  acceptable_sell_price = sum([trades[i].price * trades[i].quantity  for i in range(len(trades)) if trades[i].seller== "SUBMISSION"])
-                  acceptable_sell_price /= sum([trades[i].quantity for i in range(len(trades)) if trades[i].seller == "SUBMISSION"])
-                  acceptable_sell_price = math.ceil(acceptable_sell_price)
+                    # calculating minimum selling price per share (i.e total amount of shares / no. of shares)
+                    acceptable_sell_price = sum(
+                        [
+                            trades[i].price * trades[i].quantity
+                            for i in range(len(trades))
+                            if trades[i].seller == "SUBMISSION"
+                        ]
+                    )
+                    acceptable_sell_price /= sum(
+                        [
+                            trades[i].quantity
+                            for i in range(len(trades))
+                            if trades[i].seller == "SUBMISSION"
+                        ]
+                    )
+                    acceptable_sell_price = math.ceil(acceptable_sell_price)
 
-                  # Calculating best bid price
-                  best_bid = max(order_depth.buy_orders.keys())
-                  best_bid_volume = order_depth.buy_orders[best_bid]
+                    # Calculating best bid price
+                    best_bid = max(order_depth.buy_orders.keys())
+                    best_bid_volume = order_depth.buy_orders[best_bid]
 
-                  # if best bid price is higher than accepted sell price, 
-                  if best_bid > acceptable_sell_price:
-                      print("SELL", str(best_bid_volume) + "x", best_bid)
-                      orders.append(Order(product, best_bid, -best_bid_volume))
+                    # if best bid price is higher than accepted sell price,
+                    if best_bid > acceptable_sell_price:
+                        print("SELL", str(best_bid_volume) + "x", best_bid)
+                        orders.append(Order(product, best_bid, -best_bid_volume))
 
             except:
                 # If statement checks if there are any SELL orders in the PEARLS market
