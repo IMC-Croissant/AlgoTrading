@@ -1,0 +1,13 @@
+from typing import List, Dict
+from collections import defaultdict
+from datamodel import Trade
+
+def calculate_vwap(trades: List[Trade]) -> Dict[str, float]:
+    vwap_by_product = defaultdict(float)
+    volume_by_product = defaultdict(int)
+    for trade in trades:
+        vwap_by_product[trade.symbol] += trade.price * trade.quantity
+        volume_by_product[trade.symbol] += trade.quantity
+    for product in vwap_by_product:
+        vwap_by_product[product] /= volume_by_product[product]
+    return dict(vwap_by_product)
