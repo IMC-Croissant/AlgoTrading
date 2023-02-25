@@ -3,7 +3,7 @@ from datamodel import Listing, OrderDepth, Trade, TradingState, Order
 from numpy import NaN, array
 import pandas as pd
 import math
-
+import talib
 
 def vwap(trades: List[Trade], volume: int) -> float:
     trade_sum = 0
@@ -57,16 +57,37 @@ def calculate_bollinger_bands(state: TradingState, symbol: str, window: int, num
         bollinger_bands.append((ma, upper_band, lower_band))
     return bollinger_bands
 
-def supertrend(close: List[float], high: List[float], low: List[float], period: int = 7, multiplier: float = 3.0) -> pd.DataFrame:
-    df = pd.DataFrame({'Close': close, 'High': high, 'Low': low})
-    ATR = period * df['High'].diff().abs().fillna(0)
-    df['Basic Upper Band'] = (df['High'] + df['Low']) / 2 + multiplier * ATR
-    df['Basic Lower Band'] = (df['High'] + df['Low']) / 2 - multiplier * ATR
-    df['Final Upper Band'] = NaN
-    df['Final Lower Band'] = NaN
-    for i in range(period, len(df)):
-        df.at[i, 'Final Upper Band'] = df['Basic Upper Band'][i] if df['Basic Upper Band'][i] < df['Final Upper Band'][i-1] or pd.isna(df['Final Upper Band'][i-1]) else df['Final Upper Band'][i-1]
-        df.at[i, 'Final Lower Band'] = df['Basic Lower Band'][i] if df['Basic Lower Band'][i] > df['Final Lower Band'][i-1] or pd.isna(df['Final Lower Band'][
+def atr(prices: List[float], periods: int) -> List[float]:
+    """
+    Calculates the Average True Range (ATR) using the given price data and the specified number of periods.
+    """
+    tr = [max(prices[i + 1] - prices[i], abs(prices[i + 1] - prices[i - 1]), prices[i] - prices[i - 1]) for i in range(1, len(prices))]
+    atr = [mean(tr[:periods])]
+    for i in range(periods, len(prices) - 1):
+        atr.append((atr[-1] * (periods - 1) + tr[i - periods + 1]) / periods)
+    return atr
+
+def super_trend(prices: List[float], periods: int = 7, multiplier: float = 3.0) -> Dict[str, List[float]]:
+    """
+    Calculates the SuperTrend indicator using the given price data, the specified number of periods, and the specified multiplier.
+    Returns a dictionary containing the SuperTrend values and the trend direction (+1 for bullish and -1 for bearish).
+    """
+    atr_values = atr(prices, periods)
+    hl2 = [(prices[i] + prices[i - 1]) / 2 for i in range(1, len(prices))]
+    upper_band = [0.0] * (periods - 1) + [hl2[periods - 1] + multiplier * atr_values[0]]
+    lower_band = [0.0] * (periods - 1) + [hl2[periods - 1] - multiplier * atr_values[0]]
+    trend = [0.0] * (periods - 1) + [1 if prices[periods - 1] > lower_band[periods - 1] else -1]
+    for i in range(periods, len(prices) - 1):
+        atr_value = atr_values[i - periods]
+        upper_band.append(min(hl2[i], upper_band[-1] if trend[-1] == 1 else lower_band[-1]) + multiplier * atr_value)
+        lower_band.append(max(hl2[i], lower_band[-1] if trend[-1] == -1 else upper_band[-1]) - multiplier * atr_value)
+        if prices[i] > lower_band[-1]:
+            trend.append(1)
+        elif prices[i] < upper_band[-1]:
+            trend.append(-1)
+        else:
+            trend.append(1 if trend[-1] == 1 else -1)
+    return {'super_trend': upper_band, 'trend': trend}
 
 # Parkinson’s volatility uses the stock’s high and low price of the day rather than just close to close prices. It’s useful to capture large price movements during the day. 
 def parkinson_volatility(data: List[float], window_size: int = 20) -> List[float]:
