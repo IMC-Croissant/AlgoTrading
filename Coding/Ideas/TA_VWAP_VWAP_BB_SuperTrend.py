@@ -1,5 +1,7 @@
 from typing import Dict, List
 from datamodel import Listing, OrderDepth, Trade, TradingState, Order
+from numpy import NaN, array
+import pandas as pd
 
 def vwap(trades: List[Trade], volume: int) -> float:
     trade_sum = 0
@@ -52,4 +54,17 @@ def calculate_bollinger_bands(state: TradingState, symbol: str, window: int, num
         std_dev_values.append(std_dev)
         bollinger_bands.append((ma, upper_band, lower_band))
     return bollinger_bands
+
+def supertrend(close: List[float], high: List[float], low: List[float], period: int = 7, multiplier: float = 3.0) -> pd.DataFrame:
+    df = pd.DataFrame({'Close': close, 'High': high, 'Low': low})
+    ATR = period * df['High'].diff().abs().fillna(0)
+    df['Basic Upper Band'] = (df['High'] + df['Low']) / 2 + multiplier * ATR
+    df['Basic Lower Band'] = (df['High'] + df['Low']) / 2 - multiplier * ATR
+    df['Final Upper Band'] = NaN
+    df['Final Lower Band'] = NaN
+    for i in range(period, len(df)):
+        df.at[i, 'Final Upper Band'] = df['Basic Upper Band'][i] if df['Basic Upper Band'][i] < df['Final Upper Band'][i-1] or pd.isna(df['Final Upper Band'][i-1]) else df['Final Upper Band'][i-1]
+        df.at[i, 'Final Lower Band'] = df['Basic Lower Band'][i] if df['Basic Lower Band'][i] > df['Final Lower Band'][i-1] or pd.isna(df['Final Lower Band'][
+
+
 
