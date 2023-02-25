@@ -1,10 +1,13 @@
 from typing import Dict, List, Tuple
 from datamodel import OrderDepth, TradingState, Order
+import math
 import numpy as np
 import pandas as pd
 
 
 class Trader:
+    _trader_state_history = []
+
     def _nadaraya_watson_estimator(
         self, data: pd.DataFrame, target: str, bandwidth: float
     ) -> np.ndarray:
@@ -56,7 +59,7 @@ class Trader:
         otherwise H = 0.5 -> randomness
         """
         lags = np.arange(min_lag, max_lag)
-        tau = [np.std(np.substract(data[lag:], price[:-lag]) for lag in lags)]
+        tau = [np.std(np.substract(data[lag:], data[:-lag]) for lag in lags)]
         poly = np.polyfit(np.log10(lags), np.log10(tau), 1)
 
         return poly, lags, tau
@@ -165,6 +168,10 @@ class Trader:
         Only method required. It takes all buy and sell orders for all symbols as an input,
         and outputs a list of orders to be sent
         """
+        # trader history
+        self._trader_state_history.append(state.timestamp)
+        print(f"history list of timestamp {self._trader_state_history}")
+
         # Initialize the method output dict as an empty dict
         result = {}
 
@@ -188,7 +195,7 @@ class Trader:
 
             try:
                 if len(order_depth.sell_orders) > 0:
-                    trades = own_trades[product]
+                    trades = state.own_trades[product]
                     acceptable_buy_price = min(
                         [
                             trades[i].price
@@ -196,6 +203,9 @@ class Trader:
                             if trades[i].buyer == "SUBMISSION"
                         ]
                     )
+
+                    best_ask = min(order_depth.sell_orders.keys())
+                    best_ask_volume = order_depth.sell_orders[best_ask]
 
                     if best_ask < acceptable_buy_price:
 
