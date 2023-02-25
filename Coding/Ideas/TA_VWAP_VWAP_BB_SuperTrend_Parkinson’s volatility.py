@@ -69,6 +69,12 @@ def supertrend(close: List[float], high: List[float], low: List[float], period: 
         df.at[i, 'Final Lower Band'] = df['Basic Lower Band'][i] if df['Basic Lower Band'][i] > df['Final Lower Band'][i-1] or pd.isna(df['Final Lower Band'][
 
 # Parkinson’s volatility uses the stock’s high and low price of the day rather than just close to close prices. It’s useful to capture large price movements during the day.
+"""
+The ParkinsonVolatility class takes a list of prices and a period parameter as inputs. 
+It then calculates the logarithm of the highest and lowest prices in each period of length period, and stores them in a list called log_hl. 
+Finally, it calculates the square root of the sum of the squares of the elements in log_hl multiplied by 1 / (len(self.prices) - self.period), 
+which is the number of non-overlapping periods in the price data. This value represents the Parkinson's volatility of the price data over the specified period.
+"""     
 class ParkinsonVolatility:
     def __init__(self, prices: List[float], period: int):
         self.prices = prices
