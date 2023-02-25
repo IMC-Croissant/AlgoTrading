@@ -68,21 +68,35 @@ def supertrend(close: List[float], high: List[float], low: List[float], period: 
         df.at[i, 'Final Upper Band'] = df['Basic Upper Band'][i] if df['Basic Upper Band'][i] < df['Final Upper Band'][i-1] or pd.isna(df['Final Upper Band'][i-1]) else df['Final Upper Band'][i-1]
         df.at[i, 'Final Lower Band'] = df['Basic Lower Band'][i] if df['Basic Lower Band'][i] > df['Final Lower Band'][i-1] or pd.isna(df['Final Lower Band'][
 
-# Parkinson’s volatility uses the stock’s high and low price of the day rather than just close to close prices. It’s useful to capture large price movements during the day.
-"""
-The ParkinsonVolatility class takes a list of prices and a period parameter as inputs. 
-It then calculates the logarithm of the highest and lowest prices in each period of length period, and stores them in a list called log_hl. 
-Finally, it calculates the square root of the sum of the squares of the elements in log_hl multiplied by 1 / (len(self.prices) - self.period), 
-which is the number of non-overlapping periods in the price data. This value represents the Parkinson's volatility of the price data over the specified period.
-"""     
-class ParkinsonVolatility:
-    def __init__(self, prices: List[float], period: int):
-        self.prices = prices
-        self.period = period
-
-    def calculate(self) -> float:
-        log_hl = []
-        for i in range(len(self.prices) - self.period):
-            hl = math.log(max(self.prices[i:i+self.period])) - math.log(min(self.prices[i:i+self.period]))
-            log_hl.append(hl)
-        return math.sqrt(sum([x ** 2 for x in log_hl]) * (1 / (len(self.prices) - self.period)))
+# Parkinson’s volatility uses the stock’s high and low price of the day rather than just close to close prices. It’s useful to capture large price movements during the day. 
+def parkinson_volatility(data: List[float], window_size: int = 20) -> List[float]:
+    """
+    Calculate Parkinson's volatility for a given data using a rolling window of window_size
+    
+    Parameters:
+    data (List[float]): A list of float numbers representing the price data
+    window_size (int): An integer representing the size of the rolling window. Default value is 20.
+    
+    Returns:
+    A list of float numbers representing the calculated Parkinson's volatility
+    
+    The function loops through the price data, calculates the logarithm of the ratio between each price and the previous price, 
+    and sums the squared logarithms within the rolling window. 
+    The sum is then divided by the size of the window times the logarithm of 2, 
+    and the result is appended to the parkinson_vol list. T
+    he function returns the list of calculated Parkinson's volatilities.
+    """
+    half_window_size = int(window_size / 2)
+    parkinson_vol = []
+    for i in range(len(data)):
+        if i < half_window_size:
+            parkinson_vol.append(0.0)
+            continue
+        if i + half_window_size >= len(data):
+            parkinson_vol.append(0.0)
+            break
+        log_sum = 0.0
+        for j in range(i - half_window_size, i + half_window_size):
+            log_sum += log(data[j] / data[j-1]) ** 2
+        parkinson_vol.append(log_sum / (2 * half_window_size * log(2)))
+    return parkinson_vol
