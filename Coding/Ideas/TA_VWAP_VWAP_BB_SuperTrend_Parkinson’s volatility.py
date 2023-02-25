@@ -2,6 +2,8 @@ from typing import Dict, List
 from datamodel import Listing, OrderDepth, Trade, TradingState, Order
 from numpy import NaN, array
 import pandas as pd
+import math
+
 
 def vwap(trades: List[Trade], volume: int) -> float:
     trade_sum = 0
@@ -66,5 +68,15 @@ def supertrend(close: List[float], high: List[float], low: List[float], period: 
         df.at[i, 'Final Upper Band'] = df['Basic Upper Band'][i] if df['Basic Upper Band'][i] < df['Final Upper Band'][i-1] or pd.isna(df['Final Upper Band'][i-1]) else df['Final Upper Band'][i-1]
         df.at[i, 'Final Lower Band'] = df['Basic Lower Band'][i] if df['Basic Lower Band'][i] > df['Final Lower Band'][i-1] or pd.isna(df['Final Lower Band'][
 
+# Parkinson’s volatility uses the stock’s high and low price of the day rather than just close to close prices. It’s useful to capture large price movements during the day.
+class ParkinsonVolatility:
+    def __init__(self, prices: List[float], period: int):
+        self.prices = prices
+        self.period = period
 
-
+    def calculate(self) -> float:
+        log_hl = []
+        for i in range(len(self.prices) - self.period):
+            hl = math.log(max(self.prices[i:i+self.period])) - math.log(min(self.prices[i:i+self.period]))
+            log_hl.append(hl)
+        return math.sqrt(sum([x ** 2 for x in log_hl]) * (1 / (len(self.prices) - self.period)))
