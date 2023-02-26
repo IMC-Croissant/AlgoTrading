@@ -1,7 +1,7 @@
 from typing import Dict, List
 from datamodel import OrderDepth, TradingState, Order
 from pandas import DataFrame
-from numpy import nan
+import numpy as np
 
 
 class Trader:
@@ -10,14 +10,37 @@ class Trader:
         'BANANAS': [10000],
             })
 
+    def _hurst_exponential(self, product: str, timestamp: int, min_lag: int, max_lag: int) -> bool:
+        """Computes Hurst exponential estimate H following
+        min and max lag values.
+
+        Remark: H > 0.5 -> trendy, H < 0.5 -> reversal
+        otherwise H = 0.5 -> randomness
+        """
+        if min_lag < 1:
+            raise Exception("min_lag must be >= 1")
+        # Added condition to make sure hurst exponent can be computed
+        if timestamp < (max_lag + 1) * 100:
+            return True
+
+        data = self._history[product].values
+        lags = np.arange(min_lag, max_lag + 1)
+        tau = [np.std(np.subtract(data[lag:], data[:-lag]))
+            for lag in lags]
+        poly = np.polyfit(np.log10(lags), np.log10(tau), 1)
+        trendy = True if poly[0] > 0.5 else False
+        print("Product {} is trendy {}".format(product, trendy))
+
+        return trendy
+
     def _get_acceptable_price(self, state: TradingState, product: str) -> tuple:
         """Computes acceptable price from historical data. """
         history_product = self._history[product]
         # print("history_product \n", history_product)
         # compute rolling mean of size 20 if possible
         # print("state timestamp ", state.timestamp)
-        if state.timestamp > 1500:
-            history_rolling = history_product.rolling(window=10)
+        if state.timestamp > 2000:
+            history_rolling = history_product.rolling(window=8)
             means = history_rolling.mean()
             stds = history_rolling.std()
             # fill na's 
@@ -54,8 +77,8 @@ class Trader:
             avg_bananas = sum([trade.price * trade.quantity for trade in own_trades["BANANAS"]])
             avg_bananas /= sum([trade.quantity for trade in own_trades["BANANAS"]])
 
-            print("avg_bananas, ", avg_bananas)
-            print("avg_pearls, ", avg_pearls)
+            # print("avg_bananas, ", avg_bananas)
+            # print("avg_pearls, ", avg_pearls)
             self._history = self._history.append({
                 "PEARLS": avg_pearls,
                 "BANANAS": avg_bananas,
@@ -90,8 +113,9 @@ class Trader:
 
                 # Define a fair value for the PEARLS.
                 # Note that this value of 1 is just a dummy value, you should likely change it!
-                # acceptable_price = 4900 if product == 'PEARLS' else 9980
                 acceptable_price, std = self._get_acceptable_price(state, product)
+                # Identify trendy market with Hurst exponent
+                trendy = self._hurst_exponential(product, state.timestamp, 1, 15)
                 # If statement checks if there are any SELL orders in the PEARLS market
                 if len(order_depth.sell_orders) > 0:
 
@@ -118,7 +142,7 @@ class Trader:
                 if len(order_depth.buy_orders) != 0:
                     best_bid = max(order_depth.buy_orders.keys())
                     best_bid_volume = order_depth.buy_orders[best_bid]
-                    if best_bid > acceptable_price + 2*std:
+                    if best_bid > acceptable_price + 2*std and not trendy:
                         print("SELL", str(best_bid_volume) + "x", best_bid)
                         orders.append(Order(product, best_bid, -best_bid_volume))
 
