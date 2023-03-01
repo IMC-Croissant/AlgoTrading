@@ -1,8 +1,8 @@
 from datamodel import Listing, OrderDepth, Trade, TradingState
-from main_from_scratch import Trader
+from MM_momo import Trader
 import time
 
-timestamp = 2100
+timestamp = 6000
 
 listings = {
 	"PEARLS": Listing(
@@ -20,7 +20,7 @@ listings = {
 order_depths = {
 	"PEARLS": OrderDepth(
 		buy_orders={10: 7, 9: 5},
-		sell_orders={12: -5, 13: -3}
+		sell_orders={20: -5, 13: -3}
 	),
 	"BANANAS": OrderDepth(
 		buy_orders={142: 3, 141: 5},
