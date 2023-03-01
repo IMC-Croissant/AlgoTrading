@@ -37,8 +37,8 @@ class Trader:
     _history = pd.DataFrame([[10, 144]], columns= ['PEARLS', 'BANANAS'], index = [0])
 
 ## -- INVENTORY MANAGER -- ##
-    def inventory_manager(self, product: str):
-        phi()
+    # def inventory_manager(self, product: str):
+    #     phi()
 ## SMA ##  
     def _get_sma(self, state: TradingState, product: str) -> tuple:
         """Computes SMA20 and SMA50 from historical data"""
