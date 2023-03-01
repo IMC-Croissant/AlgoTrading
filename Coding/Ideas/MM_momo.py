@@ -125,8 +125,7 @@ class Trader:
             # Initialize the list of Orders to be sent as an empty list
             orders: list[Order] = []
 
-            # mid_price = (level_one_ask + level_one_bid)/2
-            # if position[product] is None
+            # Safeguard for every order to execute
             cur_pos = 0
             
             if bool(position):
