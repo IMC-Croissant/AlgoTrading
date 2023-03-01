@@ -9,7 +9,7 @@ class Trader:
 ## Make a market algo ## 
     def make_a_market(self, l1_bid: int, l1_ask: int, momoFlag: int) -> tuple:
         spread = l1_ask-l1_bid
-        if spread > 5:
+        if spread > 6:
             if momoFlag == 1: # Bullish Trend --> aggresive bids
                 mm_bid = l1_bid + spread*0.4
                 mm_ask = l1_ask - spread*0.1
@@ -154,10 +154,13 @@ class Trader:
             # volume               
             quantity_ask = order_depth.sell_orders[l1_ask]
             quantity_bid = order_depth.buy_orders[l1_bid]
+            
             quantity = min(quantity_ask, quantity_bid)
-       
-            orders.append(Order(product, mm_bid, 3))
-            orders.append(Order(product, mm_ask, -1*3))
+            
+            if self.position[product] < 15:                 #[-15, 15]
+                orders.append(Order(product, mm_bid, 3))
+            if self.position[product] > (15 * -1):
+                orders.append(Order(product, mm_ask, -1*3))
             
             result[product] = orders
 
