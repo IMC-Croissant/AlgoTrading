@@ -9,13 +9,13 @@ class Trader:
 ## Make a market algo ## 
     def make_a_market(self, l1_bid: int, l1_ask: int, momoFlag: int) -> tuple:
         spread = l1_ask-l1_bid
-        if spread > 5:
+        if spread > 4:
             if momoFlag == 1: # Bullish Trend --> aggresive bids
-                mm_bid = l1_bid + spread*0.4
+                mm_bid = l1_bid + spread*0.15
                 mm_ask = l1_ask - spread*0.1
             elif momoFlag == 0: # Bearish Trend -> aggressive ask
                 mm_bid = l1_bid + spread*0.1
-                mm_ask = l1_ask - spread*0.4
+                mm_ask = l1_ask - spread*0.15
             elif momoFlag == -1:
                 mm_bid = l1_bid + spread*0.1
                 mm_ask = l1_ask - spread*0.1
@@ -37,7 +37,8 @@ class Trader:
     _history = pd.DataFrame([[10, 144]], columns= ['PEARLS', 'BANANAS'], index = [0])
 
 ## -- INVENTORY MANAGER -- ##
-
+    def inventory_manager(self, product: str):
+        phi()
 ## SMA ##  
     def _get_sma(self, state: TradingState, product: str) -> tuple:
         """Computes SMA20 and SMA50 from historical data"""
@@ -115,11 +116,9 @@ class Trader:
         position = state.position
 
         self._process_new_data(state)
-        print(self._history['PEARLS'].rolling(window=2).mean())
 
         # Iterate over all the keys (the available products) contained in the order depths
         for product in state.order_depths.keys():
-
             # Retrieve the Order Depth containing all the market BUY and SELL orders for PEARLS
             order_depth: OrderDepth = state.order_depths[product]
 
@@ -127,8 +126,15 @@ class Trader:
             orders: list[Order] = []
 
             # mid_price = (level_one_ask + level_one_bid)/2
-            # max_long = 20 - position[product] # cannot buy more than this
-            # max_short = -20 - position[product] # cannot short more than this
+            # if position[product] is None
+            cur_pos = 0
+            
+            if bool(position):
+                if product in position.keys():
+                    cur_pos = state.position[product]
+
+            max_long = 20 - cur_pos # cannot buy more than this
+            max_short = -20 - cur_pos # cannot short more than this
 
             # Momentum Flag: if 20SMA >< 50SMA inventory & spreads change accordingly. Use HURST exp to ID if trendy
             sma_20, sma_50 = self._get_sma(state, product)
@@ -151,13 +157,13 @@ class Trader:
 
             mm_bid = math.ceil(mm_bid)
             mm_ask = math.floor(mm_ask)
-            # volume               
-            quantity_ask = order_depth.sell_orders[l1_ask]
-            quantity_bid = order_depth.buy_orders[l1_bid]
-            quantity = min(quantity_ask, quantity_bid)
-       
-            orders.append(Order(product, mm_bid, 3))
-            orders.append(Order(product, mm_ask, -1*3))
+            # volume             
+
+            buy_quantity = min(15, max_long)
+            sell_quantity = max(-15, max_short)
+        
+            orders.append(Order(product, mm_bid, buy_quantity))
+            orders.append(Order(product, mm_ask, sell_quantity))
             
             result[product] = orders
 
