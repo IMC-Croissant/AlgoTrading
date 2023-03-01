@@ -135,7 +135,7 @@ class Trader:
 
             if sma_50 == -1:
                 momo_flag = -1 # Not enough history just make regular market
-            elif sma_50 > sma_20:
+            elif sma_50 < sma_20:
                 momo_flag = 1 # Bullish Trend
             else:
                 momo_flag = 0 # Bearish Trend
