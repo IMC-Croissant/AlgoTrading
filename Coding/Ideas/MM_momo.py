@@ -7,9 +7,14 @@ import math
 class Trader:
 
 ## Make a market algo ## 
-    def make_a_market(self, l1_bid: int, l1_ask: int, momoFlag: int) -> tuple:
+    def make_a_market(self, l1_bid: int, l1_ask: int, momoFlag: int, product) -> tuple:
         spread = l1_ask-l1_bid
-        if spread > 3:
+        if product == 'PEARLS':
+            thre = 3
+        if product == 'BANANAS':
+            thre = 2
+        if spread > thre:
+            
             if momoFlag == 1: # Bullish Trend --> aggresive bids
                 mm_bid = l1_bid 
                 mm_ask = l1_ask 
@@ -24,6 +29,7 @@ class Trader:
             mm_ask = 100000000
 
         return mm_bid, mm_ask
+    
         # spread = l1_ask-l1_bid
         # if l1_ask - l1_bid > 6:
         #     mm_bid = l1_bid + spread*0.1
@@ -152,7 +158,7 @@ class Trader:
             l1_ask = min(order_depth.sell_orders.keys())
             l1_bid = max(order_depth.buy_orders.keys())
 
-            mm_bid, mm_ask = self.make_a_market(l1_bid, l1_ask, momo_flag)
+            mm_bid, mm_ask = self.make_a_market(l1_bid, l1_ask, momo_flag, product)
 
             mm_bid = math.ceil(mm_bid)
             mm_ask = math.floor(mm_ask)
@@ -160,9 +166,18 @@ class Trader:
 
             buy_quantity = min(15, max_long)
             sell_quantity = max(-15, max_short)
-        
-            orders.append(Order(product, mm_bid, buy_quantity))
-            orders.append(Order(product, mm_ask, sell_quantity))
+
+            mid = (l1_ask + l1_bid)/2
+            if product == 'PEARLS':
+                if mid< 10003:
+                    orders.append(Order(product, mm_bid, buy_quantity))
+                if mid> 9997:
+                    orders.append(Order(product, mm_ask, sell_quantity))
+            if product == 'BANANAS':
+                orders.append(Order(product, mm_bid, buy_quantity))
+                orders.append(Order(product, mm_ask, sell_quantity))
+            
+            
             
             result[product] = orders
 
