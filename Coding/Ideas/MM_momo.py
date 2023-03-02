@@ -9,16 +9,16 @@ class Trader:
 ## Make a market algo ## 
     def make_a_market(self, l1_bid: int, l1_ask: int, momoFlag: int) -> tuple:
         spread = l1_ask-l1_bid
-        if spread > 5:
+        if spread > 3:
             if momoFlag == 1: # Bullish Trend --> aggresive bids
-                mm_bid = l1_bid + spread*0.15
-                mm_ask = l1_ask - spread*0.1
+                mm_bid = l1_bid 
+                mm_ask = l1_ask 
             elif momoFlag == 0: # Bearish Trend -> aggressive ask
-                mm_bid = l1_bid + spread*0.1
-                mm_ask = l1_ask - spread*0.15
+                mm_bid = l1_bid 
+                mm_ask = l1_ask 
             elif momoFlag == -1:
-                mm_bid = l1_bid + spread*0.1
-                mm_ask = l1_ask - spread*0.1
+                mm_bid = l1_bid 
+                mm_ask = l1_ask
         else:
             mm_bid = 0
             mm_ask = 100000000

@@ -19,8 +19,8 @@ class Trader:
             elif momoFlag == -1:
                 # mm_bid = 9998
                 # mm_ask = 10002
-                mm_bid = l1_bid + spread*0.1
-                mm_ask = l1_ask - spread*0.1
+                mm_bid = l1_bid 
+                mm_ask = l1_ask 
         else:
             mm_bid = 0
             mm_ask = 100000000
