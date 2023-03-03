@@ -5,34 +5,24 @@ from pandas import DataFrame
 import math
 
 class Trader:
-    
-## next volume
-    def next_volume(self, l1_bid: int, l1_ask: int, curr_pos : int) ->tuple:
-        if curr_pos < 0:
-            bid_vol = self.position_limit
-        else:
-            bid_vol = self.position_limit - curr_pos
-        if curr_pos > 0:
-            ask_vol = -1 * self.position_limit
-        else:
-            ask_vol = -1 * self.position_limit - curr_pos
-        return bid_vol, ask_vol
 
 ## Make a market algo ## 
     def make_a_market(self, l1_bid: int, l1_ask: int, momoFlag: int, product) -> tuple:
         spread = l1_ask-l1_bid
         if product == 'PEARLS':
             thre = 2
+        
         if product == 'BANANAS':
             thre = 2
-        if spread > thre:
+            momoFlag = -1
             
+        if spread > thre:        
             if momoFlag == 1: # Bullish Trend --> aggresive bids
-                mm_bid = l1_bid 
+                mm_bid = l1_bid + 1
                 mm_ask = l1_ask 
             elif momoFlag == 0: # Bearish Trend -> aggressive ask
                 mm_bid = l1_bid 
-                mm_ask = l1_ask 
+                mm_ask = l1_ask - 1
             elif momoFlag == -1:
                 mm_bid = l1_bid 
                 mm_ask = l1_ask
@@ -63,7 +53,7 @@ class Trader:
         history_product = self._history[product]
 
         if state.timestamp > 5100:
-            sma_20 = history_product.rolling(window = 20).mean()[state.timestamp]
+            sma_20 = history_product.rolling(window = 10).mean()[state.timestamp]
             sma_50 = history_product.rolling(window = 50).mean()[state.timestamp]
             return sma_20, sma_50
         else:
@@ -176,19 +166,19 @@ class Trader:
             mm_ask = math.floor(mm_ask)
             # volume             
 
-            buy_quantity = min(15, max_long)
-            sell_quantity = max(-15, max_short)
+            buy_quantity = min(20, max_long)
+            sell_quantity = max(-20, max_short)
 
             mid = (l1_ask + l1_bid)/2
             if product == 'PEARLS':
-                if mid< 10003:
+                if mid< 10006:
                     orders.append(Order(product, mm_bid, buy_quantity))
-                if mid> 9997:
+                if mid> 9994:
                     orders.append(Order(product, mm_ask, sell_quantity))
             if product == 'BANANAS':
                 orders.append(Order(product, mm_bid, buy_quantity))
                 orders.append(Order(product, mm_ask, sell_quantity))
-            
+
             
             
             result[product] = orders
