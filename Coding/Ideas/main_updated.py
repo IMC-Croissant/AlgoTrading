@@ -80,7 +80,7 @@ class Trader:
         print("acceptable bid {} ask {} product {}".format(
             acceptable_bid, acceptable_ask, product))
 
-        return acceptable_bid, acceptable_ask
+        return acceptable_bid, acceptable_ask, mid_price
 
     def _process_new_data(self, state: TradingState) -> None:
         """Adds new data point to historical data."""
@@ -117,32 +117,35 @@ class Trader:
         # print("current data ", self._history)
 
         for product in state.order_depths.keys():
-            if product in ('PEARLS', 'BANANAS'):
-                # order_depth: OrderDepth = state.order_depths[product]
-                orders: list[Order] = []
+            # order_depth: OrderDepth = state.order_depths[product]
+            orders: list[Order] = []
 
-                # bullish = self._hurst_exponential(product, state.timestamp, 1, 40)
-                bullish = self._get_sma_indicator(state, product)
-                acceptable_bid, acceptable_ask = self._get_acceptable_price(
-                    state, product, bullish)
+            # bullish = self._hurst_exponential(product, state.timestamp, 1, 40)
+            bullish = self._get_sma_indicator(state, product)
+            acceptable_bid, acceptable_ask, mid_price = self._get_acceptable_price(
+                state, product, bullish)
 
-                current_position = 0
-                if bool(state.position):
-                    if product in state.position.keys():
-                        current_position = state.position[product]
+            current_position = 0
+            if bool(state.position):
+                if product in state.position.keys():
+                    current_position = state.position[product]
 
-                max_long_position = 20 - current_position
-                max_short_position = -20 - current_position
+            max_long_position = 20 - current_position
+            max_short_position = -20 - current_position
 
-                buy_quantity = min(15, max_long_position)
-                sell_quantity = max(-15, max_short_position)
+            buy_quantity = min(15, max_long_position)
+            sell_quantity = max(-15, max_short_position)
 
-                print("SELL", str(sell_quantity) + "x", acceptable_ask)
+            if product == "PEARLS":
+                # bid ask for only large spreads
+                if mid_price > 9997:
+                    orders.append(Order(product, acceptable_ask, sell_quantity))
+                if mid_price < 10003:
+                    orders.append(Order(product, acceptable_bid, buy_quantity))
+            if product == "BANANAS":
                 orders.append(Order(product, acceptable_ask, sell_quantity))
-
-                print("BUY", str(buy_quantity) + "x", acceptable_bid)
                 orders.append(Order(product, acceptable_bid, buy_quantity))
 
-                result[product] = orders
+            result[product] = orders
 
         return result
