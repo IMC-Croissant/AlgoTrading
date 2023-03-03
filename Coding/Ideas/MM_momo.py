@@ -5,12 +5,24 @@ from pandas import DataFrame
 import math
 
 class Trader:
+    
+## next volume
+    def next_volume(self, l1_bid: int, l1_ask: int, curr_pos : int) ->tuple:
+        if curr_pos < 0:
+            bid_vol = self.position_limit
+        else:
+            bid_vol = self.position_limit - curr_pos
+        if curr_pos > 0:
+            ask_vol = -1 * self.position_limit
+        else:
+            ask_vol = -1 * self.position_limit - curr_pos
+        return bid_vol, ask_vol
 
 ## Make a market algo ## 
     def make_a_market(self, l1_bid: int, l1_ask: int, momoFlag: int, product) -> tuple:
         spread = l1_ask-l1_bid
         if product == 'PEARLS':
-            thre = 3
+            thre = 2
         if product == 'BANANAS':
             thre = 2
         if spread > thre:
