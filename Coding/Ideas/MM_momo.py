@@ -10,16 +10,19 @@ class Trader:
     def make_a_market(self, l1_bid: int, l1_ask: int, momoFlag: int, product) -> tuple:
         spread = l1_ask-l1_bid
         if product == 'PEARLS':
-            thre = 3
+            thre = 2
+            momoFlag = -1
+        
         if product == 'BANANAS':
             thre = 2
-        if spread > thre:
-            
+            momoFlag = -1
+
+        if spread > thre:        
             if momoFlag == 1: # Bullish Trend --> aggresive bids
                 mm_bid = l1_bid 
-                mm_ask = l1_ask 
+                mm_ask = l1_ask - 1
             elif momoFlag == 0: # Bearish Trend -> aggressive ask
-                mm_bid = l1_bid 
+                mm_bid = l1_bid + 1
                 mm_ask = l1_ask 
             elif momoFlag == -1:
                 mm_bid = l1_bid 
@@ -50,8 +53,9 @@ class Trader:
         """Computes SMA20 and SMA50 from historical data"""
         history_product = self._history[product]
 
-        if state.timestamp > 5100:
-            sma_20 = history_product.rolling(window = 20).mean()[state.timestamp]
+        # if state.timestamp > 5100:
+        if state.timestamp > 5600:
+            sma_20 = history_product.rolling(window = 15).mean()[state.timestamp]
             sma_50 = history_product.rolling(window = 50).mean()[state.timestamp]
             return sma_20, sma_50
         else:
@@ -164,21 +168,35 @@ class Trader:
             mm_ask = math.floor(mm_ask)
             # volume             
 
-            buy_quantity = min(15, max_long)
-            sell_quantity = max(-15, max_short)
+            buy_quantity = min(20, max_long)
+            sell_quantity = max(-20, max_short)
+    
+            # quantity control 
+            if product == 'BANANAS':
+                if momo_flag == 1: #bull
+                    sell_quantity = sell_quantity - 1
+                    buy_quantity = buy_quantity 
+                elif momo_flag == 0: #bear
+                    sell_quantity = sell_quantity
+                    buy_quantity = buy_quantity - 1
+                    
+            # inventory
+                if cur_pos > 10 and momo_flag == 0:  
+                    buy_quantity = buy_quantity + 1
+                if cur_pos < -10 and momo_flag == 1:
+                    sell_quantity = sell_quantity + 1
 
             mid = (l1_ask + l1_bid)/2
             if product == 'PEARLS':
-                if mid< 10003:
+                if mid< 10006:
                     orders.append(Order(product, mm_bid, buy_quantity))
-                if mid> 9997:
+                if mid> 9994:
                     orders.append(Order(product, mm_ask, sell_quantity))
             if product == 'BANANAS':
                 orders.append(Order(product, mm_bid, buy_quantity))
                 orders.append(Order(product, mm_ask, sell_quantity))
-            
-            
-            
+                
+
             result[product] = orders
 
             
