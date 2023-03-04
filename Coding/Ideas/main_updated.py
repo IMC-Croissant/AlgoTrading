@@ -7,24 +7,32 @@ import numpy as np
 
 
 class Trader:
+    _buy_indicator = True
     _history = pd.DataFrame([[10, 144]],
             columns=['PEARLS', 'BANANAS'],
             index=[0])
 
     def _get_sma_indicator(self, state: TradingState, product: str) -> bool:
-        """Computes SMA20 and SMA50 and defines a bullish indicator."""
+        """Computes SMA20, SMA50 and SMA80 with respective bands values"""
         history_product = self._history[product]
 
-        bullish = False
+        bullish = -1
 
-        if state.timestamp > 51 * 100:
+        if state.timestamp > 21 * 100:
+            current_mid_price = history_product[state.timestamp]
+            std_sma_20 = history_product.rolling(window=20).std()[state.timestamp]
             sma_20 = history_product.rolling(window=20).mean()[state.timestamp]
-            sma_50 = history_product.rolling(window=50).mean()[state.timestamp]
+            # sma_50 = history_product.rolling(window=50).mean()[state.timestamp]
+            # sma_80 = history_product.rolling(window=80).mean()[state.timestamp]
+            upper_band = sma_20 + 1 * std_sma_20
+            lower_band = sma_20 - 1 * std_sma_20
 
-            if sma_50 < sma_20 and product != "PEARLS":
+            if lower_band > current_mid_price:
                 bullish = True # bullish market
+            elif upper_band < current_mid_price:
+                bullish = False
 
-        print("SMA indicator is bullish: ", bullish)
+        print("SMA indicator is bullish {} for {}".format(bullish, product))
 
         return bullish
 
@@ -50,6 +58,20 @@ class Trader:
         print("Product {} is bullish (Hurst) {}".format(product, bullish))
 
         return bullish
+
+    def _get_acceptable_quantity(self, current_volume: int, position_limit: int = 20) -> tuple:
+        """Computes acceptable quantity (volume) from position. """
+        if current_volume < 0:
+            buy_volume = position_limit
+        else:
+            buy_volume = position_limit - current_volume
+
+        if current_volume > 0:
+            sell_volume = - 1 * position_limit
+        else:
+            sell_volume = -1 * position_limit - current_volume
+
+        return buy_volume, sell_volume
 
     def _get_acceptable_price(self, state: TradingState, product: str, bullish: bool) -> tuple:
         """Computes acceptable price from historical data. """
@@ -136,17 +158,20 @@ class Trader:
 
             # quantity control and inventory
             if product == "BANANAS":
-                if bullish:
-                    sell_quantity -= 1
-                else:
-                    buy_quantity -= 2
+                # only operate when market trend can be identified
+                if isinstance(bullish, bool) and bullish:
+                    if self._buy_indicator:
+                        buy_quantity, sell_quantity = self._get_acceptable_quantity(
+                                current_position)
+                        orders.append(Order(product, acceptable_bid, buy_quantity))
+                        self._buy_indicator = False
 
-                if current_position > 10 and not bullish:
-                    buy_quantity += 2
-
-                if current_position < -10 and bullish:
-                    sell_quantity += 2
-
+                elif isinstance(bullish, bool) and not bullish:
+                    if not self._buy_indicator:
+                        buy_quantity, sell_quantity = self._get_acceptable_quantity(
+                                current_position)
+                        orders.append(Order(product, acceptable_ask, sell_quantity))
+                        self._buy_indicator = True
 
             if product == "PEARLS":
                 # bid ask for only large spreads
@@ -154,9 +179,6 @@ class Trader:
                     orders.append(Order(product, acceptable_ask, sell_quantity))
                 if mid_price < 10002:
                     orders.append(Order(product, acceptable_bid, buy_quantity))
-            if product == "BANANAS":
-                orders.append(Order(product, acceptable_ask, sell_quantity))
-                orders.append(Order(product, acceptable_bid, buy_quantity))
 
             result[product] = orders
 

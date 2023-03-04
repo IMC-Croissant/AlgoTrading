@@ -205,7 +205,6 @@ class Trader:
             orders.append(Order(product, mm_ask, sell_quantity))
 
             result[product] = orders
-
             
             print("state.own_trades = ", own_trades)
             print("state.market_trades = ", market_trades)
