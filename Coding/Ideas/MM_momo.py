@@ -30,17 +30,8 @@ class Trader:
         else:
             mm_bid = 0
             mm_ask = 100000000
-
+            
         return mm_bid, mm_ask
-    
-        # spread = l1_ask-l1_bid
-        # if l1_ask - l1_bid > 6:
-        #     mm_bid = l1_bid + spread*0.1
-        #     mm_ask = l1_ask - spread*0.1
-        # else:
-        #     mm_bid = 0
-        #     mm_ask = 1000000
-        # return mm_bid, mm_ask
     
 ## -- HISTORY DATAFRAME -- ##
     _history = pd.DataFrame([[10, 144]], columns= ['PEARLS', 'BANANAS'], index = [0])
@@ -54,7 +45,7 @@ class Trader:
         history_product = self._history[product]
 
         # if state.timestamp > 5100:
-        if state.timestamp > 5600:
+        if state.timestamp > 5100:
             sma_20 = history_product.rolling(window = 15).mean()[state.timestamp]
             sma_50 = history_product.rolling(window = 50).mean()[state.timestamp]
             return sma_20, sma_50
@@ -170,6 +161,9 @@ class Trader:
 
             buy_quantity = min(20, max_long)
             sell_quantity = max(-20, max_short)
+            
+            #Spread
+            spread = l1_ask-l1_bid
     
             # quantity control 
             if product == 'BANANAS':
@@ -188,17 +182,25 @@ class Trader:
 
             mid = (l1_ask + l1_bid)/2
             if product == 'PEARLS':
-                if mid< 10006:
-                    orders.append(Order(product, mm_bid, buy_quantity))
-                if mid> 9994:
+                if l1_bid > 10001: #10001
+                    if spread < 3:
+                        orders.append(Order(product, l1_bid, sell_quantity))
+                else:
+                    # if mid> 9994:
                     orders.append(Order(product, mm_ask, sell_quantity))
+                    
+                if l1_ask < 9999: #9999
+                    if spread < 3:
+                        orders.append(Order(product, l1_ask, buy_quantity))
+                else:
+                    # if mid< 10006:
+                    orders.append(Order(product, mm_bid, buy_quantity))
+
             if product == 'BANANAS':
                 orders.append(Order(product, mm_bid, buy_quantity))
                 orders.append(Order(product, mm_ask, sell_quantity))
                 
-
             result[product] = orders
-
             
             print("state.own_trades = ", own_trades)
             print("state.market_trades = ", market_trades)
