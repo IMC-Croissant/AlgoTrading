@@ -8,7 +8,7 @@ class Trader:
 
 
 ## Make a market algo ## 
-    def make_a_market(self, l1_bid: int, l1_ask: int, momoFlag: int, product) -> tuple:
+    def make_a_market(self, l1_bid: int, l1_ask: int, momoFlag: int, product, fairvalue) -> tuple:
         mm_bid = 0
         mm_ask = 10000000
         spread = l1_ask-l1_bid
@@ -30,14 +30,16 @@ class Trader:
             elif momoFlag == -1: # No trend -> L1 bid and ask
                 mm_bid = l1_bid 
                 mm_ask = l1_ask 
-        elif product == 'PEARLS' and spread < 3: # liquid market with FV cross
+        elif product == 'PEARLS' and spread <= thre: # liquid market with FV cross
             if l1_bid > 10000:
                 mm_ask = l1_bid # cross the book (sell above FV)
             elif l1_ask < 10000:
                 mm_bid = l1_ask # cross the book (buy below FV)
-        # else:
-        #     mm_bid = 0
-        #     mm_ask = 100000000
+        elif product == 'BANANAS' and spread <= thre:
+            if l1_bid > fairvalue:
+                mm_ask = l1_bid
+            elif l1_ask < fairvalue:
+                mm_bid = l1_bid
         mm_bid = math.ceil(mm_bid)
         mm_ask = math.floor(mm_ask)
         return mm_bid, mm_ask
@@ -45,8 +47,8 @@ class Trader:
 ## -- QUANTITY CONTROL -- ## 
     def get_quantity(self, product: str, max_long: int, max_short: int, cur_pos: int, momo_flag: int) -> tuple:
 
-        buy_quantity = min(20, max_long)
-        sell_quantity = max(-20, max_short)
+        buy_quantity = min(max_long, 20) # max_long can be > 20 we dont ever want to 
+        sell_quantity = max(max_short, -20)
 
         # For trendy product we adjust quantity 
         if product == 'BANANAS':
@@ -193,13 +195,17 @@ class Trader:
             l1_ask = min(order_depth.sell_orders.keys())
             l1_bid = max(order_depth.buy_orders.keys())
             spread = l1_ask - l1_bid
-
+            
+            fairvalue = sma_20
+            if sma_20 == -1:
+                fairvalue = 4948
             # MAKE THE MARKET
-            mm_bid, mm_ask = self.make_a_market(l1_bid, l1_ask, momo_flag, product) # assign our bid/ask spread
+            mm_bid, mm_ask = self.make_a_market(l1_bid, l1_ask, momo_flag, product, fairvalue) # assign our bid/ask spread
 
             # INVENTORY MANAGEMENT/VOLUME             
             buy_quantity, sell_quantity = self.get_quantity(product, max_long, max_short, cur_pos, momo_flag)
-            
+            buy_quantity = min(buy_quantity, 20) # max_long can be > 20 we dont ever want to 
+            sell_quantity = max(sell_quantity, -20)
             # ORDER UP!
             orders.append(Order(product, mm_bid, buy_quantity))
             orders.append(Order(product, mm_ask, sell_quantity))
