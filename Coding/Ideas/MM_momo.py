@@ -6,8 +6,11 @@ import math
 
 class Trader:
 
+
 ## Make a market algo ## 
     def make_a_market(self, l1_bid: int, l1_ask: int, momoFlag: int, product) -> tuple:
+        mm_bid = 0
+        mm_ask = 10000000
         spread = l1_ask-l1_bid
         if product == 'PEARLS':
             thre = 2
@@ -19,28 +22,56 @@ class Trader:
 
         if spread > thre:        
             if momoFlag == 1: # Bullish Trend --> aggresive bids
-                mm_bid = l1_bid 
-                mm_ask = l1_ask - 1
-            elif momoFlag == 0: # Bearish Trend -> aggressive ask
                 mm_bid = l1_bid + 1
                 mm_ask = l1_ask 
-            elif momoFlag == -1:
+            elif momoFlag == 0: # Bearish Trend -> aggressive ask
                 mm_bid = l1_bid 
-                mm_ask = l1_ask
-        else:
-            mm_bid = 0
-            mm_ask = 100000000
-
-        return mm_bid, mm_ask
-    
-        # spread = l1_ask-l1_bid
-        # if l1_ask - l1_bid > 6:
-        #     mm_bid = l1_bid + spread*0.1
-        #     mm_ask = l1_ask - spread*0.1
+                mm_ask = l1_ask - 1
+            elif momoFlag == -1: # No trend -> L1 bid and ask
+                mm_bid = l1_bid 
+                mm_ask = l1_ask 
+        elif product == 'PEARLS' and spread < 3: # liquid market with FV cross
+            if l1_bid > 10000:
+                mm_ask = l1_bid # cross the book (sell above FV)
+            elif l1_ask < 10000:
+                mm_bid = l1_ask # cross the book (buy below FV)
         # else:
         #     mm_bid = 0
-        #     mm_ask = 1000000
-        # return mm_bid, mm_ask
+        #     mm_ask = 100000000
+        mm_bid = math.ceil(mm_bid)
+        mm_ask = math.floor(mm_ask)
+        return mm_bid, mm_ask
+
+## -- QUANTITY CONTROL -- ## 
+    def get_quantity(self, product: str, max_long: int, max_short: int, cur_pos: int, momo_flag: int) -> tuple:
+
+        buy_quantity = min(20, max_long)
+        sell_quantity = max(-20, max_short)
+
+        # For trendy product we adjust quantity 
+        if product == 'BANANAS':
+            if momo_flag == 1: #bull trend, so we want to buy more than we sell
+                sell_quantity = sell_quantity - 1
+                buy_quantity = buy_quantity 
+            elif momo_flag == 0: #bear trend, so we want to sell more than we buy 
+                sell_quantity = sell_quantity
+                buy_quantity = buy_quantity - 1
+                        
+        # We safeguard against trend going against us accordingly 
+            if cur_pos > 10 and momo_flag == 0:  # bear trend
+                sell_quantity += 1
+                buy_quantity -= 1
+            if cur_pos < -10 and momo_flag == 1: # bull trend
+                sell_quantity -= 1
+                buy_quantity += 1
+                
+            return buy_quantity, sell_quantity
+        elif product == 'PEARLS':
+            return buy_quantity, sell_quantity
+        
+        
+
+
     
 ## -- HISTORY DATAFRAME -- ##
     _history = pd.DataFrame([[10, 144]], columns= ['PEARLS', 'BANANAS'], index = [0])
@@ -54,7 +85,7 @@ class Trader:
         history_product = self._history[product]
 
         # if state.timestamp > 5100:
-        if state.timestamp > 5600:
+        if state.timestamp > 5100:
             sma_20 = history_product.rolling(window = 15).mean()[state.timestamp]
             sma_50 = history_product.rolling(window = 50).mean()[state.timestamp]
             return sma_20, sma_50
@@ -125,6 +156,7 @@ class Trader:
         own_trades = state.own_trades
         position = state.position
 
+        # Store data from current timestamp
         self._process_new_data(state)
 
         # Iterate over all the keys (the available products) contained in the order depths
@@ -134,14 +166,13 @@ class Trader:
 
             # Initialize the list of Orders to be sent as an empty list
             orders: list[Order] = []
-
+        
             # Safeguard for every order to execute
             cur_pos = 0
             
             if bool(position):
                 if product in position.keys():
                     cur_pos = state.position[product]
-
             max_long = 20 - cur_pos # cannot buy more than this
             max_short = -20 - cur_pos # cannot short more than this
 
@@ -161,41 +192,17 @@ class Trader:
             # LEVEL 1: ask and bid
             l1_ask = min(order_depth.sell_orders.keys())
             l1_bid = max(order_depth.buy_orders.keys())
+            spread = l1_ask - l1_bid
 
-            mm_bid, mm_ask = self.make_a_market(l1_bid, l1_ask, momo_flag, product)
+            # MAKE THE MARKET
+            mm_bid, mm_ask = self.make_a_market(l1_bid, l1_ask, momo_flag, product) # assign our bid/ask spread
 
-            mm_bid = math.ceil(mm_bid)
-            mm_ask = math.floor(mm_ask)
-            # volume             
-
-            buy_quantity = min(20, max_long)
-            sell_quantity = max(-20, max_short)
-    
-            # quantity control 
-            if product == 'BANANAS':
-                if momo_flag == 1: #bull
-                    sell_quantity = sell_quantity - 1
-                    buy_quantity = buy_quantity 
-                elif momo_flag == 0: #bear
-                    sell_quantity = sell_quantity
-                    buy_quantity = buy_quantity - 1
-                    
-            # inventory
-                if cur_pos > 10 and momo_flag == 0:  
-                    buy_quantity = buy_quantity + 1
-                if cur_pos < -10 and momo_flag == 1:
-                    sell_quantity = sell_quantity + 1
-
-            mid = (l1_ask + l1_bid)/2
-            if product == 'PEARLS':
-                if mid< 10006:
-                    orders.append(Order(product, mm_bid, buy_quantity))
-                if mid> 9994:
-                    orders.append(Order(product, mm_ask, sell_quantity))
-            if product == 'BANANAS':
-                orders.append(Order(product, mm_bid, buy_quantity))
-                orders.append(Order(product, mm_ask, sell_quantity))
-                
+            # INVENTORY MANAGEMENT/VOLUME             
+            buy_quantity, sell_quantity = self.get_quantity(product, max_long, max_short, cur_pos, momo_flag)
+            
+            # ORDER UP!
+            orders.append(Order(product, mm_bid, buy_quantity))
+            orders.append(Order(product, mm_ask, sell_quantity))
 
             result[product] = orders
 
