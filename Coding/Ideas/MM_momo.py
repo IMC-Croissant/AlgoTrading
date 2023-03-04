@@ -175,10 +175,10 @@ class Trader:
                     buy_quantity = buy_quantity - 1
                     
             # inventory
-                if cur_pos > 10 and momo_flag == 0:  
-                    buy_quantity = buy_quantity + 1
-                if cur_pos < -10 and momo_flag == 1:
-                    sell_quantity = sell_quantity + 1
+                if cur_pos > 18 and momo_flag == 0:  #bearish while holding long
+                    buy_quantity = buy_quantity - 1
+                if cur_pos < -18 and momo_flag == 1:  #bullish while holding short
+                    sell_quantity = sell_quantity - 1
 
             mid = (l1_ask + l1_bid)/2
             if product == 'PEARLS':
