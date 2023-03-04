@@ -76,7 +76,7 @@ class Trader:
 
     
 ## -- HISTORY DATAFRAME -- ##
-    _history = pd.DataFrame([[10, 144]], columns= ['PEARLS', 'BANANAS'], index = [0])
+    _history = pd.DataFrame([[10000, 4948]], columns= ['PEARLS', 'BANANAS'], index = [0])
 
 ## -- INVENTORY MANAGER -- ##
     # def inventory_manager(self, product: str):
