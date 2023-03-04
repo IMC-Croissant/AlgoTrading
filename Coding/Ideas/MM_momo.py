@@ -39,11 +39,11 @@ class Trader:
 
         spread = l1_ask-l1_bid
         if product == 'PEARLS':
-            thre = 2
+            thre = 3
             momoFlag = -1
         
         if product == 'BANANAS':
-            thre = 2
+            thre = 3
             momoFlag = -1
 
         if spread > thre:        
