@@ -21,10 +21,8 @@ class Trader:
             sma_20 = history_product.rolling(window=20).mean()[state.timestamp]
             sma_50 = history_product.rolling(window=50).mean()[state.timestamp]
 
-            if sma_50 < sma_20:
+            if sma_50 < sma_20 and product != "PEARLS":
                 bullish = True # bullish market
-            else:
-                bullish = False
 
         print("SMA indicator is bullish: ", bullish)
 
@@ -136,11 +134,25 @@ class Trader:
             buy_quantity = min(15, max_long_position)
             sell_quantity = max(-15, max_short_position)
 
+            # quantity control and inventory
+            if product == "BANANAS":
+                if bullish:
+                    sell_quantity -= 1
+                else:
+                    buy_quantity -= 2
+
+                if current_position > 10 and not bullish:
+                    buy_quantity += 2
+
+                if current_position < -10 and bullish:
+                    sell_quantity += 2
+
+
             if product == "PEARLS":
                 # bid ask for only large spreads
-                if mid_price > 9997:
+                if mid_price > 9998:
                     orders.append(Order(product, acceptable_ask, sell_quantity))
-                if mid_price < 10003:
+                if mid_price < 10002:
                     orders.append(Order(product, acceptable_bid, buy_quantity))
             if product == "BANANAS":
                 orders.append(Order(product, acceptable_ask, sell_quantity))
