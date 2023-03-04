@@ -8,9 +8,35 @@ class Trader:
 
 
 ## Make a market algo ## 
-    def make_a_market(self, l1_bid: int, l1_ask: int, momoFlag: int, product, fairvalue) -> tuple:
+    def make_a_market(self, asks: list, bids: list, momoFlag: int, product, fairvalue) -> tuple:
+        
         mm_bid = 0
         mm_ask = 10000000
+
+        l1_ask = asks[0]
+        l1_bid = bids[-1]
+
+        l2_bid = 0
+        l3_bid = 0
+
+        l2_ask = 1000000
+        l3_ask = 1000000
+
+        # For crossing the book we need to check if there are multiple levels we can win on
+        # Thus we look at all lvls of the book
+        if len(bids) > 2:
+            l3_bid = bids[-3]
+            l2_bid = bids[-2]
+        elif len(bids) > 1:
+            l2_bid = bids[-2]
+        
+        if len(asks) > 2:
+            l3_ask = asks[2]
+            l2_ask = asks[1]
+        elif len(asks) > 1:
+            l2_ask = asks[1]
+    
+
         spread = l1_ask-l1_bid
         if product == 'PEARLS':
             thre = 2
@@ -31,15 +57,31 @@ class Trader:
                 mm_bid = l1_bid 
                 mm_ask = l1_ask 
         elif product == 'PEARLS' and spread <= thre: # liquid market with FV cross
-            if l1_bid > 10000:
-                mm_ask = l1_bid # cross the book (sell above FV)
-            elif l1_ask < 10000:
-                mm_bid = l1_ask # cross the book (buy below FV)
-        elif product == 'BANANAS' and spread <= thre:
-            if l1_bid > fairvalue:
+            if l3_bid > 10000:
+                mm_ask = l3_bid # cross the book (sell above FV)
+            elif l2_bid > 10000:
+                mm_ask = l2_bid
+            elif l1_bid > 10000:
                 mm_ask = l1_bid
+            elif l3_ask < 10000:
+                mm_bid = l3_ask # cross the book (buy below FV)
+            elif l2_ask < 10000:
+                mm_bid = l2_ask
+            elif l1_ask < 10000:
+                mm_bid = l1_ask
+        elif product == 'BANANAS' and spread <= thre: # Cross the book but lets look at 
+            if l3_bid > fairvalue:
+                mm_ask = l3_bid
+            elif l2_bid > fairvalue:
+                mm_ask = l2_bid
+            elif l1_bid > fairvalue:
+                mm_ask = l1_bid
+            elif l3_ask < fairvalue:
+                mm_bid = l3_ask
+            elif l2_ask < fairvalue:
+                mm_bid = l2_ask
             elif l1_ask < fairvalue:
-                mm_bid = l1_bid
+                mm_bid = l1_ask
         mm_bid = math.ceil(mm_bid)
         mm_ask = math.floor(mm_ask)
         return mm_bid, mm_ask
@@ -192,15 +234,14 @@ class Trader:
                 momo_flag = -1
 
             # LEVEL 1: ask and bid
-            l1_ask = min(order_depth.sell_orders.keys())
-            l1_bid = max(order_depth.buy_orders.keys())
-            spread = l1_ask - l1_bid
+            asks = sorted(order_depth.sell_orders.keys())
+            bids = sorted(order_depth.buy_orders.keys())
             
             fairvalue = sma_20
             if sma_20 == -1:
                 fairvalue = 4948
             # MAKE THE MARKET
-            mm_bid, mm_ask = self.make_a_market(l1_bid, l1_ask, momo_flag, product, fairvalue) # assign our bid/ask spread
+            mm_bid, mm_ask = self.make_a_market(asks, bids, momo_flag, product, fairvalue) # assign our bid/ask spread
 
             # INVENTORY MANAGEMENT/VOLUME             
             buy_quantity, sell_quantity = self.get_quantity(product, max_long, max_short, cur_pos, momo_flag)
