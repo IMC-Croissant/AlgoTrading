@@ -43,7 +43,7 @@ class Trader:
             momoFlag = -1
         
         if product == 'BANANAS':
-            thre = 3
+            thre = 2
             momoFlag = -1
 
         if spread > thre:        
@@ -102,11 +102,11 @@ class Trader:
                 buy_quantity = buy_quantity - 1
                         
         # We safeguard against trend going against us accordingly 
-            if cur_pos > 10 and momo_flag == 0:  # bear trend
+            if cur_pos > 12 and momo_flag == 0:  # bear trend
                 sell_quantity += 1
-                buy_quantity -= 1
-            if cur_pos < -10 and momo_flag == 1: # bull trend
-                sell_quantity -= 1
+                buy_quantity
+            if cur_pos < -12 and momo_flag == 1: # bull trend
+                sell_quantity
                 buy_quantity += 1
                 
             return buy_quantity, sell_quantity
@@ -114,8 +114,6 @@ class Trader:
             return buy_quantity, sell_quantity
         
         
-
-
     
 ## -- HISTORY DATAFRAME -- ##
     _history = pd.DataFrame([[10000, 4948]], columns= ['PEARLS', 'BANANAS'], index = [0])
@@ -248,6 +246,7 @@ class Trader:
             buy_quantity = min(buy_quantity, 20) # max_long can be > 20 we dont ever want to 
             sell_quantity = max(sell_quantity, -20)
             # ORDER UP!
+            # if product == 'PEARLS'/'BANANAS':
             orders.append(Order(product, mm_bid, buy_quantity))
             orders.append(Order(product, mm_ask, sell_quantity))
 
