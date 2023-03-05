@@ -9,4 +9,4 @@ This is used for the sole purpose to check for typing errors and miscellaneous p
 Currently, in order to run it, is required to execute it within the `Coding/Ideas/.` folder. It takes the trader class
 from `main_from_scratch.py`. Other versions can be used.
 
-`MM_momo.py`: added order_depths, havent optimized pearls cross strategy yet, need to optimize bananas sitting at 5.8k
+`MM_momo.py`: added order_depths, havent optimized pearls cross strategy yet, need to optimize bananas sitting at 6.33k
