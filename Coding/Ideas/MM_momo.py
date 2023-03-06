@@ -10,7 +10,7 @@ class Trader:
 ## Make a market algo ## 
     def make_a_market(self, asks: list, bids: list, momoFlag: int, product, fairvalue) -> tuple:
         
-        mm_bid = 0
+        mm_bid = 0 
         mm_ask = 10000000
 
         l1_ask = asks[0]
