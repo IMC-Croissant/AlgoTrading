@@ -5,7 +5,8 @@ from pandas import DataFrame
 import math
 
 class Trader:
-
+## We want to optimize the cross book strategy. This is best done when asks (bid) is below (above) a certain threshold. 
+## The problem with our current version: We only consider crossing when spread is below a certain point (makes sense) but we "might" be losing out on juicy "higher" spread crosses. e.g. spread 3
 
 ## Make a market algo ## 
     def make_a_market(self, asks: list, bids: list, momoFlag: int, product, fairvalue) -> tuple:
@@ -21,6 +22,11 @@ class Trader:
 
         l2_ask = 1000000
         l3_ask = 1000000
+
+
+        # Two choices
+        # Quote the L1_ask and L1_bid... or.. cross the book
+        # We should prioritize crossing the book then quoting the market
 
         # For crossing the book we need to check if there are multiple levels we can win on
         # Thus we look at all lvls of the book
@@ -46,17 +52,17 @@ class Trader:
             thre = 2
             momoFlag = -1
 
-        if spread > thre:        
-            if momoFlag == 1: # Bullish Trend --> aggresive bids
-                mm_bid = l1_bid + 1
-                mm_ask = l1_ask 
-            elif momoFlag == 0: # Bearish Trend -> aggressive ask
-                mm_bid = l1_bid 
-                mm_ask = l1_ask - 1
-            elif momoFlag == -1: # No trend -> L1 bid and ask
-                mm_bid = l1_bid 
-                mm_ask = l1_ask 
-        elif product == 'PEARLS' and spread <= thre: # liquid market with FV cross
+        # if spread > thre:        
+        #     if momoFlag == 1: # Bullish Trend --> aggresive bids
+        #         mm_bid = l1_bid + 1
+        #         mm_ask = l1_ask 
+        #     elif momoFlag == 0: # Bearish Trend -> aggressive ask
+        #         mm_bid = l1_bid 
+        #         mm_ask = l1_ask - 1
+        #     elif momoFlag == -1: # No trend -> L1 bid and ask
+        #         mm_bid = l1_bid 
+        #         mm_ask = l1_ask 
+        if product == 'PEARLS': # liquid market with FV cross
             if l3_bid > 10000:
                 mm_ask = l3_bid # cross the book (sell above FV)
             elif l2_bid > 10000:
@@ -69,21 +75,29 @@ class Trader:
                 mm_bid = l2_ask
             elif l1_ask < 10000:
                 mm_bid = l1_ask
-        elif product == 'BANANAS' and spread <= thre: # Cross the book but lets look at 
-            if l3_bid > fairvalue:
+        elif product == 'PEARLS' and spread > thre: 
+            mm_bid = l1_bid
+            mm_ask = l1_ask 
+        elif product == 'BANANAS': # Cross the book but lets look at 
+            if l3_bid > (fairvalue):
                 mm_ask = l3_bid
-            elif l2_bid > fairvalue:
+            elif l2_bid > (fairvalue):
                 mm_ask = l2_bid
-            elif l1_bid > fairvalue:
+            elif l1_bid > (fairvalue):
                 mm_ask = l1_bid
-            elif l3_ask < fairvalue:
+            elif l3_ask < (fairvalue):
                 mm_bid = l3_ask
-            elif l2_ask < fairvalue:
+            elif l2_ask < (fairvalue):
                 mm_bid = l2_ask
-            elif l1_ask < fairvalue:
+            elif l1_ask < (fairvalue):
                 mm_bid = l1_ask
+        elif product == 'BANANAS' and spread > thre:
+            mm_bid = l1_bid
+            mm_ask = l1_ask
+
         mm_bid = math.ceil(mm_bid)
         mm_ask = math.floor(mm_ask)
+
         return mm_bid, mm_ask
 
 ## -- QUANTITY CONTROL -- ## 
@@ -121,30 +135,18 @@ class Trader:
 ## -- INVENTORY MANAGER -- ##
     # def inventory_manager(self, product: str):
     #     phi()
-
-    def _get_cumavg(self, state: TradingState, product: str) -> float:
-        history_product = self._history[product]
-        if state.timestamp > 100:
-            cum_avg = history_product.rolling(window = len(history_product)).mean()[state.timestamp] # we record cumulative avg of price
-        else: 
-            cum_avg = -1
-        return cum_avg
 ## SMA ##  
     def _get_sma(self, state: TradingState, product: str) -> tuple:
         """Computes SMA20 and SMA50 from historical data"""
         history_product = self._history[product]
-        
+
         # if state.timestamp > 5100:
-        if state.timestamp > 5000:
-            sma_20 = history_product.rolling(window = 5).mean()[state.timestamp]
+        if state.timestamp > 5100:
+            sma_20 = history_product.rolling(window = 15).mean()[state.timestamp]
             sma_50 = history_product.rolling(window = 50).mean()[state.timestamp]
-            sma_5 = history_product.rolling(window = 5).mean()[state.timestamp]
-            return sma_5, sma_20, sma_50
-        elif state.timestamp > 500:
-            sma_5 = history_product.rolling(window = 5).mean()[state.timestamp]
-            return sma_5, -1, -1 
+            return sma_20, sma_50
         else:
-            return -1, -1, -1
+            return -1, -1
 
     def _get_acceptable_price(self, state: TradingState, product: str) -> tuple:
         """Computes acceptable price from historical data. """
@@ -231,8 +233,7 @@ class Trader:
             max_short = -20 - cur_pos # cannot short more than this
 
             # Momentum Flag: if 20SMA >< 50SMA inventory & spreads change accordingly. Use HURST exp to ID if trendy
-            sma_5, sma_20, sma_50 = self._get_sma(state, product)
-            cum_avg = self._get_cumavg(state, product)
+            sma_20, sma_50 = self._get_sma(state, product)
 
             if sma_50 == -1:
                 momo_flag = -1 # Not enough history just make regular market
@@ -248,15 +249,9 @@ class Trader:
             asks = sorted(order_depth.sell_orders.keys())
             bids = sorted(order_depth.buy_orders.keys())
             
-            fairvalue = sma_5 # this is always our fair value
-
-            if cum_avg == -1:
-                fairvalue = 4928
-            elif sma_20 == -1:
-                fairvalue = cum_avg # let fair value be the avg of the first couple days
-            else: 
-                fairvalue == sma_20
-
+            fairvalue = sma_20
+            if sma_20 == -1:
+                fairvalue = 4948
             # MAKE THE MARKET
             mm_bid, mm_ask = self.make_a_market(asks, bids, momo_flag, product, fairvalue) # assign our bid/ask spread
 
@@ -277,3 +272,4 @@ class Trader:
             print("orders placed = ", orders)
 
         return result
+

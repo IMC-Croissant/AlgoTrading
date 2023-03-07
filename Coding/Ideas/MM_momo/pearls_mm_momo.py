@@ -121,30 +121,18 @@ class Trader:
 ## -- INVENTORY MANAGER -- ##
     # def inventory_manager(self, product: str):
     #     phi()
-
-    def _get_cumavg(self, state: TradingState, product: str) -> float:
-        history_product = self._history[product]
-        if state.timestamp > 100:
-            cum_avg = history_product.rolling(window = len(history_product)).mean()[state.timestamp] # we record cumulative avg of price
-        else: 
-            cum_avg = -1
-        return cum_avg
 ## SMA ##  
     def _get_sma(self, state: TradingState, product: str) -> tuple:
         """Computes SMA20 and SMA50 from historical data"""
         history_product = self._history[product]
-        
+
         # if state.timestamp > 5100:
-        if state.timestamp > 5000:
-            sma_20 = history_product.rolling(window = 5).mean()[state.timestamp]
+        if state.timestamp > 5100:
+            sma_20 = history_product.rolling(window = 15).mean()[state.timestamp]
             sma_50 = history_product.rolling(window = 50).mean()[state.timestamp]
-            sma_5 = history_product.rolling(window = 5).mean()[state.timestamp]
-            return sma_5, sma_20, sma_50
-        elif state.timestamp > 500:
-            sma_5 = history_product.rolling(window = 5).mean()[state.timestamp]
-            return sma_5, -1, -1 
+            return sma_20, sma_50
         else:
-            return -1, -1, -1
+            return -1, -1
 
     def _get_acceptable_price(self, state: TradingState, product: str) -> tuple:
         """Computes acceptable price from historical data. """
@@ -231,8 +219,7 @@ class Trader:
             max_short = -20 - cur_pos # cannot short more than this
 
             # Momentum Flag: if 20SMA >< 50SMA inventory & spreads change accordingly. Use HURST exp to ID if trendy
-            sma_5, sma_20, sma_50 = self._get_sma(state, product)
-            cum_avg = self._get_cumavg(state, product)
+            sma_20, sma_50 = self._get_sma(state, product)
 
             if sma_50 == -1:
                 momo_flag = -1 # Not enough history just make regular market
@@ -248,15 +235,9 @@ class Trader:
             asks = sorted(order_depth.sell_orders.keys())
             bids = sorted(order_depth.buy_orders.keys())
             
-            fairvalue = sma_5 # this is always our fair value
-
-            if cum_avg == -1:
-                fairvalue = 4928
-            elif sma_20 == -1:
-                fairvalue = cum_avg # let fair value be the avg of the first couple days
-            else: 
-                fairvalue == sma_20
-
+            fairvalue = sma_20
+            if sma_20 == -1:
+                fairvalue = 4948
             # MAKE THE MARKET
             mm_bid, mm_ask = self.make_a_market(asks, bids, momo_flag, product, fairvalue) # assign our bid/ask spread
 
@@ -277,3 +258,4 @@ class Trader:
             print("orders placed = ", orders)
 
         return result
+

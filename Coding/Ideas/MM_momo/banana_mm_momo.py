@@ -214,66 +214,66 @@ class Trader:
         self._process_new_data(state)
 
         # Iterate over all the keys (the available products) contained in the order depths
-        for product in state.order_depths.keys():
-            # Retrieve the Order Depth containing all the market BUY and SELL orders for PEARLS
-            order_depth: OrderDepth = state.order_depths[product]
+        product = 'BANANAS'
+        # Retrieve the Order Depth containing all the market BUY and SELL orders for PEARLS
+        order_depth: OrderDepth = state.order_depths[product]
 
-            # Initialize the list of Orders to be sent as an empty list
-            orders: list[Order] = []
+        # Initialize the list of Orders to be sent as an empty list
+        orders: list[Order] = []
+    
+        # Safeguard for every order to execute
+        cur_pos = 0
         
-            # Safeguard for every order to execute
-            cur_pos = 0
-            
-            if bool(position):
-                if product in position.keys():
-                    cur_pos = state.position[product]
-            max_long = 20 - cur_pos # cannot buy more than this
-            max_short = -20 - cur_pos # cannot short more than this
+        if bool(position):
+            if product in position.keys():
+                cur_pos = state.position[product]
+        max_long = 20 - cur_pos # cannot buy more than this
+        max_short = -20 - cur_pos # cannot short more than this
 
-            # Momentum Flag: if 20SMA >< 50SMA inventory & spreads change accordingly. Use HURST exp to ID if trendy
-            sma_5, sma_20, sma_50 = self._get_sma(state, product)
-            cum_avg = self._get_cumavg(state, product)
+        # Momentum Flag: if 20SMA >< 50SMA inventory & spreads change accordingly. Use HURST exp to ID if trendy
+        sma_5, sma_20, sma_50 = self._get_sma(state, product)
+        cum_avg = self._get_cumavg(state, product)
 
-            if sma_50 == -1:
-                momo_flag = -1 # Not enough history just make regular market
-            elif sma_50 < sma_20:
-                momo_flag = 1 # Bullish Trend
-            else:
-                momo_flag = 0 # Bearish Trend
+        if sma_50 == -1:
+            momo_flag = -1 # Not enough history just make regular market
+        elif sma_50 < sma_20:
+            momo_flag = 1 # Bullish Trend
+        else:
+            momo_flag = 0 # Bearish Trend
 
-            if product == 'PEARLS':
-                momo_flag = -1
+        if product == 'PEARLS':
+            momo_flag = -1
 
-            # LEVEL 1: ask and bid
-            asks = sorted(order_depth.sell_orders.keys())
-            bids = sorted(order_depth.buy_orders.keys())
-            
-            fairvalue = sma_5 # this is always our fair value
+        # LEVEL 1: ask and bid
+        asks = sorted(order_depth.sell_orders.keys())
+        bids = sorted(order_depth.buy_orders.keys())
+        
+        fairvalue = sma_5 # this is always our fair value
 
-            if cum_avg == -1:
-                fairvalue = 4928
-            elif sma_20 == -1:
-                fairvalue = cum_avg # let fair value be the avg of the first couple days
-            else: 
-                fairvalue == sma_20
+        if cum_avg == -1:
+            fairvalue = 4928
+        elif sma_20 == -1:
+            fairvalue = cum_avg # let fair value be the avg of the first couple days
+        else: 
+            fairvalue == sma_20
 
-            # MAKE THE MARKET
-            mm_bid, mm_ask = self.make_a_market(asks, bids, momo_flag, product, fairvalue) # assign our bid/ask spread
+        # MAKE THE MARKET
+        mm_bid, mm_ask = self.make_a_market(asks, bids, momo_flag, product, fairvalue) # assign our bid/ask spread
 
-            # INVENTORY MANAGEMENT/VOLUME             
-            buy_quantity, sell_quantity = self.get_quantity(product, max_long, max_short, cur_pos, momo_flag)
-            buy_quantity = min(buy_quantity, 20) # max_long can be > 20 we dont ever want to 
-            sell_quantity = max(sell_quantity, -20)
-            # ORDER UP!
-            # if product == 'PEARLS'/'BANANAS':
-            orders.append(Order(product, mm_bid, buy_quantity))
-            orders.append(Order(product, mm_ask, sell_quantity))
+        # INVENTORY MANAGEMENT/VOLUME             
+        buy_quantity, sell_quantity = self.get_quantity(product, max_long, max_short, cur_pos, momo_flag)
+        buy_quantity = min(buy_quantity, 20) # max_long can be > 20 we dont ever want to 
+        sell_quantity = max(sell_quantity, -20)
+        # ORDER UP!
+        # if product == 'PEARLS'/'BANANAS':
+        orders.append(Order(product, mm_bid, buy_quantity))
+        orders.append(Order(product, mm_ask, sell_quantity))
 
-            result[product] = orders
-            
-            print("state.own_trades = ", own_trades)
-            print("state.market_trades = ", market_trades)
-            print("state.position = ", position)
-            print("orders placed = ", orders)
+        result[product] = orders
+        
+        print("state.own_trades = ", own_trades)
+        print("state.market_trades = ", market_trades)
+        print("state.position = ", position)
+        print("orders placed = ", orders)
 
         return result
