@@ -63,7 +63,7 @@ market_trades = {
 
 position = {
 	"PEARLS": 3,
-	"BANANAS": -5
+	"BANANAS": 0
 }
 
 observations = {}
