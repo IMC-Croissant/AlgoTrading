@@ -1,8 +1,9 @@
 from datamodel import Listing, OrderDepth, Trade, TradingState
-from MM_momo import Trader
+#from MM_momo import Trader
+from main_updated import Trader
 import time
 
-timestamp = 6000
+timestamp = 60000
 
 listings = {
 	"PEARLS": Listing(
