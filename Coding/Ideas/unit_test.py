@@ -1,5 +1,5 @@
 from datamodel import Listing, OrderDepth, Trade, TradingState
-from MM_momo import Trader
+from MM_momo_new import Trader
 import time
 
 timestamp = 6000
