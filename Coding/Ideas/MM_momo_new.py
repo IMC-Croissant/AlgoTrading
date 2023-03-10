@@ -177,7 +177,7 @@ class Trader:
         # For trendy product we adjust quantity
         if product == 'BANANAS':
             if momo_flag == 1:  # bull trend, so we want to buy more than we sell
-                sell_quantity = sell_quantity - 1
+                sell_quantity = sell_quantity + 1
                 buy_quantity = buy_quantity
             elif momo_flag == 0:  # bear trend, so we want to sell more than we buy
                 sell_quantity = sell_quantity
@@ -185,7 +185,7 @@ class Trader:
 
             # We safeguard against trend going against us accordingly
             if cur_pos > 12 and momo_flag == 0:  # bear trend
-                sell_quantity += 1
+                sell_quantity -= 1
                 buy_quantity
             if cur_pos < -12 and momo_flag == 1:  # bull trend
                 sell_quantity
@@ -376,8 +376,48 @@ class Trader:
             sell_quantity = max(sell_quantity, -20)
             # ORDER UP!
             # if product == 'PEARLS'/'BANANAS':
-            orders.append(Order(product, mm_bid, buy_quantity))
-            orders.append(Order(product, mm_ask, sell_quantity))
+            a = min(order_depth.sell_orders.keys())
+            b = max(order_depth.buy_orders.keys())
+
+            # L1 and Order Up
+            # best_ask = min(order_depth.sell_orders.keys())
+            # best_ask_volume = order_depth.sell_orders[best_ask]
+            best_ask_volume = max(order_depth.sell_orders[a],1)
+            best_bid_volume = max(order_depth.buy_orders[b],1)
+            L1_ratio = best_bid_volume/ best_ask_volume
+            spread = a - b
+            if product == 'BANANAS':
+                if L1_ratio > 1.1:  #bullish 1.01 1.02 1.03 1.05 1.1
+                    if spread < 4:
+                        sell_quantity = sell_quantity + 1
+                        orders.append(Order(product, mm_ask, sell_quantity))
+                        orders.append(Order(product, mm_bid, buy_quantity))
+                    else:
+                        orders.append(Order(product, mm_ask, sell_quantity))
+                        orders.append(Order(product, mm_bid, buy_quantity))
+                elif L1_ratio < 0.9:
+                    if spread < 4:
+                        buy_quantity = buy_quantity - 1
+                        orders.append(Order(product, mm_ask, sell_quantity))
+                        orders.append(Order(product, mm_bid, buy_quantity))
+                    else:
+                        orders.append(Order(product, mm_ask, sell_quantity))
+                        orders.append(Order(product, mm_bid, buy_quantity))
+                else:
+                    orders.append(Order(product, mm_ask, sell_quantity))
+                    orders.append(Order(product, mm_bid, buy_quantity))
+            # if product == 'BANANAS':
+            #     orders.append(Order(product, mm_ask, sell_quantity))
+            #     orders.append(Order(product, mm_bid, buy_quantity))
+            
+            if product == 'PEARLS':
+                if L1_ratio > 1.02 and spread < 4: #1.01 #1.02
+                    sell_quantity = sell_quantity + 1
+                elif L1_ratio < 0.98 and spread < 4: 
+                    buy_quantity = buy_quantity - 1
+            
+                orders.append(Order(product, mm_ask, sell_quantity))
+                orders.append(Order(product, mm_bid, buy_quantity))
 
             result[product] = orders
 
