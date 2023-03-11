@@ -34,8 +34,8 @@ class Trader:
 
         if product == "BANANAS":
             if sma_15 < sma_5 and sma_90 < sma_15:
-                bullish: True
-            elif sma_40 < sma_15:
+                bullish = True
+            elif sma_40 < sma_15 and sma_90 < sma_40:
                 bullish = True
             else:
                 bullish = False
@@ -92,19 +92,21 @@ class Trader:
         if product == "BANANAS":
             # bullish
             if isinstance(bullish, bool) and bullish:
-                sell_volume -= 1
+                sell_volume += 1
             # bearish
             elif isinstance(bullish, bool) and not bullish:
-                buy_volume += 1
+                buy_volume -= 1
             # safeguard when going against trend
+            # bearish
             if current_volume >= 10 and isinstance(bullish, bool) and not bullish:
                 sell_volume -= 1
+            # bullish
             if current_volume <= -10 and isinstance(bullish, bool) and bullish:
                 buy_volume += 1
 
         # TODO Add case for PEARLS
-        buy_volume = min(20, max_long_position)
-        sell_volume = max(-20, max_short_position)
+        buy_volume = min(20, buy_volume)
+        sell_volume = max(-20, sell_volume)
 
         print("acceptable buy vol {} sell vol {} product {}".format(
             buy_volume, sell_volume, product))
