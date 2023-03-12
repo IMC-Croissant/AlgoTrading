@@ -15,8 +15,6 @@ class Trader:
         """Computes SMA5, SMA15, SMA40 and SMA90 with respective bands values"""
         history_product = self._history[product]
         current_mid_price = history_product[state.timestamp]
-        # std_sma_20 = history_product.rolling(window=20).std()[state.timestamp]
-        # sma_20 = history_product.rolling(window=20).mean()[state.timestamp]
 
         bullish = -1
         sma_5, sma_15, sma_40, sma_90 = -1, -1, -1, -1
@@ -41,7 +39,8 @@ class Trader:
                 bullish = False
 
         if product == "PEARLS":
-            pass
+            if sma_15 < sma_5 and sma_90 < sma_40:
+                bullish = True
 
         print("SMA indicator is bullish {} for {}".format(bullish, product))
         return values, bullish
@@ -104,9 +103,8 @@ class Trader:
             if current_volume <= -10 and isinstance(bullish, bool) and bullish:
                 buy_volume += 1
 
-        # TODO Add case for PEARLS
-        buy_volume = min(20, buy_volume)
-        sell_volume = max(-20, sell_volume)
+        buy_volume = min(20, max_long_position)
+        sell_volume = max(-20, max_short_position)
 
         print("acceptable buy vol {} sell vol {} product {}".format(
             buy_volume, sell_volume, product))
@@ -186,6 +184,7 @@ class Trader:
                 elif l1_ask < fair_value:
                     acceptable_bid = l1_ask
 
+        #TODO Include bollingers band
         if product == "BANANAS":
             if spread > 2:
                 if isinstance(bullish, bool) and bullish:
