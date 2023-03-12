@@ -1,14 +1,14 @@
-from typing import Dict, List
+from typing import Dict, List, Tuple
 from datamodel import OrderDepth, TradingState, Order
 import pandas as pd
 from pandas import DataFrame
 import math
 import numpy as np
-
+import warnings
+warnings.simplefilter(action='ignore', category=FutureWarning)
 
 class Trader:
     ## -- Curr position and amount -- ##
-    # variable to store avarage price and quantity for each product at every iteration
     curr_avg_price = {
         "BANANAS": {
             "average_price": 0,
@@ -18,9 +18,10 @@ class Trader:
             "average_price": 0,
             "quantity": 0
         }
-    }
-    info_df = pd.DataFrame(
-        columns=['timestamp', 'product', 'prev_mid_price', 'curr_position', 'sma_5', 'sma_20', 'sma_50'])
+    } # Store average price and quantity for each product at every iteration
+
+    curr_timestamp = 0
+    # concatenate information for 0th timestamp
     previous_position = {
         "BANANAS": 0,
         "PEARLS": 0
@@ -28,23 +29,44 @@ class Trader:
     # count number of times quantity != position for a prduct
     times_position_not_matched = 0
 
-    def get_average_price(self, state: TradingState, product: str) -> float:
+    # History for trades
+    products_ = ['PEARLS', 'BANANAS']
+    init_ts = np.zeros(len(products_))
+    init_product = products_
+    init_mid_prices = [10000, 4948]
+    init_avg_cost = [0, 0]
+    data = list(zip(init_ts, init_product, init_mid_prices, init_avg_cost))
+    # data = list(zip([-1, -1], init_product, init_mid_prices, init_avg_cost))
+    _history = pd.DataFrame(data, columns=['timestamp', 'product', 'mid_prices', 'avg_cost'])
+    _df_history = pd.DataFrame(list(zip(init_ts, init_product, init_mid_prices,
+                                        init_avg_cost, [0, 0], [0,0], [0,0],
+                                        [0,0])),
+                               columns=['timestamp', 'product', 'prev_mid_price',
+                                        'curr_position', 'avg_cost', 'sma_5',
+                                        'sma_20', 'sma_50'])
 
+
+    def get_average_price(self, state: TradingState, product: str) -> float:
+        """
+        Get average price for a product
+        :param state:
+        :param product:
+        :return:
+        """
         if product in state.own_trades:
             # Getting current avarge price and quantity and new price and quantity
             own_trades = state.own_trades[product]
             # more than one order possible for different prices and quantity -> maybe long and sort at the same time
-            price_times_qunatity = sum([own_trades[i].price * own_trades[i].quantity if own_trades[
-                                                                                            i].buyer == 'SUBMISSION' else -1 *
-                                                                                                                          own_trades[
-                                                                                                                              i].quantity *
-                                                                                                                          own_trades[
-                                                                                                                              i].price
+            price_times_qunatity = sum([own_trades[i].price * own_trades[i].quantity
+                                        if own_trades[i].buyer == 'SUBMISSION'
+                                        else -1 * own_trades[i].quantity * own_trades[i].price
                                         for i in range(len(own_trades))])
             # quantity = sum([own_trades[i].quantity for i in range(len(own_trades))])
             quantity = sum(
-                [own_trades[i].quantity if own_trades[i].buyer == 'SUBMISSION' else -1 * own_trades[i].quantity for i in
-                 range(len(own_trades))])
+                [own_trades[i].quantity
+                 if own_trades[i].buyer == 'SUBMISSION'
+                 else -1 * own_trades[i].quantity
+                 for i in range(len(own_trades))])
             # if quantity < 0:
             #     price_times_qunatity *= -1
             curr_price = self.curr_avg_price[product]["average_price"]  # current average price
@@ -84,10 +106,7 @@ class Trader:
                 return new_avg_price if new_quantity > 0 else -1 * new_avg_price
 
         # Else
-        return self.curr_avg_price[product]["average_price"] if self.curr_avg_price[product]["quantity"] > 0 else -1 * \
-                                                                                                                  self.curr_avg_price[
-                                                                                                                      product][
-                                                                                                                      "average_price"]
+        return self.curr_avg_price[product]["average_price"] if self.curr_avg_price[product]["quantity"] > 0 else -1 * self.curr_avg_price[product]["average_price"]
         # return self.curr_avg_price[product]["average_price"]
 
     ## Make a market algo ##
@@ -195,19 +214,11 @@ class Trader:
         elif product == 'PEARLS':
             return buy_quantity, sell_quantity
 
-    ## -- HISTORY DATAFRAME -- ##
-    products_ = ['PEARLS', 'BANANAS']
-    init_ts = np.zeros(len(products_))
-    init_product = products_
-    init_mid_prices = [10000, 4948]
-    init_avg_cost = [0, 0]
-    data = list(zip(init_ts, init_product, init_mid_prices, init_avg_cost))
-    # data = list(zip([-1, -1], init_product, init_mid_prices, init_avg_cost))
-    _history = pd.DataFrame(data, columns=['timestamp', 'product', 'mid_prices', 'avg_cost'])
+
 
     ## -- INVENTORY MANAGER -- ##
     # def _get_cost_of_inventory(self, state: TradingState, product: str) -> float:
-    #     history_product = self._history[product]
+    #     history_product = self._df_history[product]
 
     def _get_cumavg(self, state: TradingState, product: str) -> float:
         df_temp = self._history[self._history['product'] == product]
@@ -220,22 +231,23 @@ class Trader:
         return cum_avg
 
     ## SMA ##
-    def _get_sma(self, state: TradingState, product: str) -> tuple:
-        """Computes SMA20 and SMA50 from historical data"""
+    def _get_sma(self, state: TradingState, product: str) -> Tuple[float, float, float]:
+        """
+        Return SMA 5, 20, 50 for a given product, in form [sma_5, sma_20, sma_50].
+        If the timestamp hasn't passed threshold, return -1 for that SMA.
+        """
         df_temp = self._history[self._history['product'] == product]
         history_product = df_temp.set_index('timestamp')
-
-        # if state.timestamp > 5100:
-        if state.timestamp > 5000:
+        sma_5 = -1
+        sma_20 = -1
+        sma_50 = -1
+        if state.timestamp > 500:
+            sma_5 = history_product.rolling(window=5).mean().loc[state.timestamp, 'mid_prices']
+        elif state.timestamp > 2000:
             sma_20 = history_product.rolling(window=20).mean().loc[state.timestamp, 'mid_prices']
+        elif state.timestamp > 5000:
             sma_50 = history_product.rolling(window=50).mean().loc[state.timestamp, 'mid_prices']
-            sma_5 = history_product.rolling(window=5).mean().loc[state.timestamp, 'mid_prices']
-            return sma_5, sma_20, sma_50
-        elif state.timestamp > 500:
-            sma_5 = history_product.rolling(window=5).mean().loc[state.timestamp, 'mid_prices']
-            return sma_5, -1, -1
-        else:
-            return -1, -1, -1
+        return sma_5, sma_20, sma_50
 
     def _get_acceptable_price(self, state: TradingState, product: str) -> tuple:
         """Computes acceptable price from historical data. """
