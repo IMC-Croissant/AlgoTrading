@@ -9,4 +9,10 @@ This is used for the sole purpose to check for typing errors and miscellaneous p
 Currently, in order to run it, is required to execute it within the `Coding/Ideas/.` folder. It takes the trader class
 from `main_from_scratch.py`. Other versions can be used.
 
-`MM_momo.py`: added order_depths, havent optimized pearls cross strategy yet, need to optimize bananas sitting at 6.33k
+## Summary of different traders with PnL 
+
+* `MM_momo.py`: added `order_depths`, havent optimized pearls cross strategy yet, need to optimize bananas sitting at 6.33k
+* `main_updated.py`: Refactores version of old `MM_momo.py`. Based on *bullish* indicator with SMA 5, 15, 40, 90. Sitting at 6.7k
+* `main_updated_v2.py`: Experimental version of `main_updated.py` for long term SMA indicator. Sitting at 6.53k
+* `main_updated_v3.py`: Modified version from `main_updated.py` but using EWM instead of SMA, to be optimized. Sitting at 6.65k 
+
