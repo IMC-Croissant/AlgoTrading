@@ -104,10 +104,10 @@ class Trader:
                 buy_volume -= 2
             # safeguard when going against trend
             # bearish
-            if current_volume >= 10 and isinstance(bullish, bool) and not bullish:
+            if current_volume >= 12 and isinstance(bullish, bool) and not bullish:
                 sell_volume -= 1
             # bullish
-            if current_volume <= -10 and isinstance(bullish, bool) and bullish:
+            if current_volume <= -12 and isinstance(bullish, bool) and bullish:
                 buy_volume += 1
 
         buy_volume = min(20, buy_volume)
