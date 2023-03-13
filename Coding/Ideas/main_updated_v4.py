@@ -110,8 +110,8 @@ class Trader:
             if current_volume <= -10 and isinstance(bullish, bool) and bullish:
                 buy_volume += 1
 
-        buy_volume = min(20, max_long_position)
-        sell_volume = max(-20, max_short_position)
+        buy_volume = min(20, buy_volume)
+        sell_volume = max(-20, sell_volume)
 
         print("acceptable buy vol {} sell vol {} product {}".format(
             buy_volume, sell_volume, product))
