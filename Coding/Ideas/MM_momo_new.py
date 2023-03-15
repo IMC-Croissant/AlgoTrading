@@ -364,9 +364,11 @@ class Trader:
             # L1 and Order Up
             # best_ask = min(order_depth.sell_orders.keys())
             # best_ask_volume = order_depth.sell_orders[best_ask]
+            
             best_ask_volume = max(order_depth.sell_orders[a], 1)
             best_bid_volume = max(order_depth.buy_orders[b], 1)
             L1_ratio = best_bid_volume / best_ask_volume
+            
             spread = a - b
             if product == 'BANANAS':
                 if L1_ratio > 1.1:  #bullish 1.01 1.02 1.03 1.05 1.1
