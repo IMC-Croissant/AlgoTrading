@@ -1,14 +1,17 @@
-from typing import Dict, List
+from typing import Dict, List, Tuple
 from datamodel import OrderDepth, TradingState, Order
+from collections import deque
 import pandas as pd
 from pandas import DataFrame
 import math
 import numpy as np
+import warnings
+warnings.simplefilter(action='ignore', category=FutureWarning)
 
 
 class Trader:
     ## -- Curr position and amount -- ##
-    # variable to store avarage price and quantity for each product at every iteration
+    # Store avarage price and quantity for each product at every iteration
     curr_avg_price = {
         "BANANAS": {
             "average_price": 0,
@@ -19,27 +22,37 @@ class Trader:
             "quantity": 0
         }
     }
-    info_df = pd.DataFrame(
-        columns=['timestamp', 'product', 'prev_mid_price', 'curr_position', 'sma_5', 'sma_20', 'sma_50'])
     previous_position = {
         "BANANAS": 0,
-        "PEARLS": 0
-    }
+        "PEARLS": 0}
+
+    ## Volume trade Stack ##
+    # If made any trades based on l1_ratio, store position change here:
+    # (product, position_change)
+    l1_stack = deque()
+
+    ## -- HISTORY DATAFRAME -- ##
+    products_ = ['PEARLS', 'BANANAS']
+    data = list(zip(np.zeros(len(products_)), products_, [10000, 4948],
+                    [0, 0], [0, 0], [-1, -1],
+                    [-1, -1], [-1, -1]))
+    _df_history = pd.DataFrame(data,
+                               columns=['timestamp', 'product', 'mid_prices', 'avg_cost',
+                                        'curr_position', 'sma_5',
+                                        'sma_20', 'sma_50'])
+
     # count number of times quantity != position for a prduct
     times_position_not_matched = 0
 
     def get_average_price(self, state: TradingState, product: str) -> float:
-
+        """Computes average price for a product"""
         if product in state.own_trades:
             # Getting current avarge price and quantity and new price and quantity
             own_trades = state.own_trades[product]
             # more than one order possible for different prices and quantity -> maybe long and sort at the same time
-            price_times_qunatity = sum([own_trades[i].price * own_trades[i].quantity if own_trades[
-                                                                                            i].buyer == 'SUBMISSION' else -1 *
-                                                                                                                          own_trades[
-                                                                                                                              i].quantity *
-                                                                                                                          own_trades[
-                                                                                                                              i].price
+            price_times_qunatity = sum([own_trades[i].price * own_trades[i].quantity
+                                        if own_trades[i].buyer == 'SUBMISSION'
+                                        else -1 * own_trades[i].quantity * own_trades[i].price
                                         for i in range(len(own_trades))])
             # quantity = sum([own_trades[i].quantity for i in range(len(own_trades))])
             quantity = sum(
@@ -74,20 +87,19 @@ class Trader:
                             new_quantity = inventory + quantity
 
                 # modifing curr_avg_price with new values
-                print("============== NEW TRADE ===============")
+                #print("============== NEW TRADE ===============")
                 self.curr_avg_price[product]["average_price"] = new_avg_price
                 self.curr_avg_price[product]["quantity"] = new_quantity
                 self.previous_position[product] = state.position[product]
                 if state.position[product] != new_quantity:
                     self.times_position_not_matched += 1
-                    print("-------------POSITION INCOSISTENCY-------------")
+                    #print("-------------POSITION INCOSISTENCY-------------")
                 return new_avg_price if new_quantity > 0 else -1 * new_avg_price
 
         # Else
-        return self.curr_avg_price[product]["average_price"] if self.curr_avg_price[product]["quantity"] > 0 else -1 * \
-                                                                                                                  self.curr_avg_price[
-                                                                                                                      product][
-                                                                                                                      "average_price"]
+        return self.curr_avg_price[product]["average_price"] \
+            if self.curr_avg_price[product]["quantity"] > 0 \
+            else -1 * self.curr_avg_price[product]["average_price"]
         # return self.curr_avg_price[product]["average_price"]
 
     ## Make a market algo ##
@@ -98,72 +110,50 @@ class Trader:
 
         l1_ask = asks[0]
         l1_bid = bids[-1]
-
-        l2_bid = 0
-        l3_bid = 0
+        spread = l1_ask - l1_bid
+        l2_bid, l3_bid = 0,0
 
         l2_ask = 1000000
         l3_ask = 1000000
 
         # For crossing the book we need to check if there are multiple levels we can win on
         # Thus we look at all lvls of the book
+        if len(bids) > 1:
+            l2_bid = bids[-2]
         if len(bids) > 2:
             l3_bid = bids[-3]
-            l2_bid = bids[-2]
-        elif len(bids) > 1:
-            l2_bid = bids[-2]
-
+        if len(asks) > 1:
+            l2_ask = asks[1]
         if len(asks) > 2:
             l3_ask = asks[2]
-            l2_ask = asks[1]
-        elif len(asks) > 1:
-            l2_ask = asks[1]
 
-        spread = l1_ask - l1_bid
+
         if product == 'PEARLS':
             thre = 3
+            fairvalue = 10000
             momoFlag = -1
-
         if product == 'BANANAS':
             thre = 2
             momoFlag = -1
-
-        if spread > thre:
+        if spread > thre: # if we have a high spread
             if momoFlag == 1:  # Bullish Trend --> aggresive bids
-                mm_bid = l1_bid + 1
-                mm_ask = l1_ask
+                l1_bid = l1_bid + 1
             elif momoFlag == 0:  # Bearish Trend -> aggressive ask
-                mm_bid = l1_bid
-                mm_ask = l1_ask - 1
+                l1_ask = l1_ask - 1
             elif momoFlag == -1:  # No trend -> L1 bid and ask
-                mm_bid = l1_bid
-                mm_ask = l1_ask
-        elif product == 'PEARLS' and spread <= thre:  # liquid market with FV cross
-            if l3_bid > 10000:
-                mm_ask = l3_bid  # cross the book (sell above FV)
-            elif l2_bid > 10000:
-                mm_ask = l2_bid
-            elif l1_bid > 10000:
-                mm_ask = l1_bid
-            elif l3_ask < 10000:
-                mm_bid = l3_ask  # cross the book (buy below FV)
-            elif l2_ask < 10000:
-                mm_bid = l2_ask
-            elif l1_ask < 10000:
-                mm_bid = l1_ask
-        elif product == 'BANANAS' and spread <= thre:  # Cross the book but lets look at
-            if l3_bid > fairvalue:
-                mm_ask = l3_bid
-            elif l2_bid > fairvalue:
-                mm_ask = l2_bid
-            elif l1_bid > fairvalue:
-                mm_ask = l1_bid
-            elif l3_ask < fairvalue:
-                mm_bid = l3_ask
-            elif l2_ask < fairvalue:
-                mm_bid = l2_ask
-            elif l1_ask < fairvalue:
-                mm_bid = l1_ask
+                pass
+            mm_bid = l1_bid
+            mm_ask = l1_ask
+
+        # If not a high spread, switch cross book criteria
+        else:  # liquid market with FV cross
+            for bid_ask in [(l3_bid, l3_ask), (l2_bid, l2_ask), (l1_bid, l1_ask)]:
+                if bid_ask[0] > fairvalue: # cross the book (sell above FV)
+                    mm_ask = bid_ask[0]
+                    break
+                elif bid_ask[1] < fairvalue: # cross the book (buy below FV)
+                    mm_bid = bid_ask[1]
+                    break
         mm_bid = math.ceil(mm_bid)
         mm_ask = math.floor(mm_ask)
         return mm_bid, mm_ask
@@ -195,22 +185,12 @@ class Trader:
         elif product == 'PEARLS':
             return buy_quantity, sell_quantity
 
-    ## -- HISTORY DATAFRAME -- ##
-    products_ = ['PEARLS', 'BANANAS']
-    init_ts = np.zeros(len(products_))
-    init_product = products_
-    init_mid_prices = [10000, 4948]
-    init_avg_cost = [0, 0]
-    data = list(zip(init_ts, init_product, init_mid_prices, init_avg_cost))
-    # data = list(zip([-1, -1], init_product, init_mid_prices, init_avg_cost))
-    _history = pd.DataFrame(data, columns=['timestamp', 'product', 'mid_prices', 'avg_cost'])
-
     ## -- INVENTORY MANAGER -- ##
     # def _get_cost_of_inventory(self, state: TradingState, product: str) -> float:
-    #     history_product = self._history[product]
+    #     history_product = self._df_history[product]
 
     def _get_cumavg(self, state: TradingState, product: str) -> float:
-        df_temp = self._history[self._history['product'] == product]
+        df_temp = self._df_history[self._df_history['product'] == product]
         history_product = df_temp.set_index('timestamp')
         if state.timestamp > 400:
             cum_avg = history_product.rolling(window=len(history_product)).mean().loc[
@@ -222,24 +202,20 @@ class Trader:
     ## SMA ##
     def _get_sma(self, state: TradingState, product: str) -> tuple:
         """Computes SMA20 and SMA50 from historical data"""
-        df_temp = self._history[self._history['product'] == product]
-        history_product = df_temp.set_index('timestamp')
-
-        # if state.timestamp > 5100:
+        df_temp = self._df_history[self._df_history['product'] == product]
+        sma_5, sma_20, sma_50 = -1, -1, -1
         if state.timestamp > 5000:
-            sma_20 = history_product.rolling(window=20).mean().loc[state.timestamp, 'mid_prices']
-            sma_50 = history_product.rolling(window=50).mean().loc[state.timestamp, 'mid_prices']
-            sma_5 = history_product.rolling(window=5).mean().loc[state.timestamp, 'mid_prices']
-            return sma_5, sma_20, sma_50
-        elif state.timestamp > 500:
-            sma_5 = history_product.rolling(window=5).mean().loc[state.timestamp, 'mid_prices']
-            return sma_5, -1, -1
-        else:
-            return -1, -1, -1
+            sma_50 = df_temp.iloc[-50:]['mid_prices'].mean()
+        if state.timestamp > 2000:
+            sma_20 = df_temp.iloc[-20:]['mid_prices'].mean()
+        if state.timestamp > 500:
+            sma_5 = df_temp.iloc[-5:]['mid_prices'].mean()
+        return sma_5, sma_20, sma_50
 
-    def _get_acceptable_price(self, state: TradingState, product: str) -> tuple:
+
+    def _get_acceptable_price(self, state: TradingState, product: str) -> Tuple[float, float]:
         """Computes acceptable price from historical data. """
-        history_product = self._history[product]
+        history_product = self._df_history[product]
         # print("history_product \n", history_product)
         # compute rolling mean of size 20 if possible
         # print("state timestamp ", state.timestamp)
@@ -260,35 +236,26 @@ class Trader:
             acceptable_price = history_product.mean()
             std = 0.0
 
-        print("computed acceptable price {} std {} for {}".format(
-            acceptable_price, std, product))
+        #print("computed acceptable price {} std {} for {}".format(
+        #    acceptable_price, std, product))
 
         return acceptable_price, std
 
-    # def _get_avg_cost(self, state: TradingState) -> list:
-
-    #     signed_quant = [] # 2d array of signed quantities [ [2, 1], [-1] ]
-    #     price_per_quant = [] # same dimension as signed quant with respective prices
-
-    #     for prod in state.order_depths.keys():
-    #         signed_quant.append([state.own_trades[prod][x].quantity if state.own_trades[prod][x].buyer == 'SUBMISSION' else -1*state.own_trades[prod][x].quantity for x in range(len(state.own_trades[prod]))])
-    #         price_per_quant.append([state.own_trades[prod][x].price for x in range(len(state.own_trades[prod]))])
-
-    #     avg = [] # the list of avg cost
-    #     quantity = [np.sum(signed_quant[i]) for i in range(len(signed_quant))]
-
-    #     for i in range(len(price_per_quant)):
-    #         avg.append(np.dot(price_per_quant[i], signed_quant[i])/abs(sum(signed_quant[i])))
-    #     return avg, quantity
-
     ## HISTORICAL FOR SMA COMPUTATION ##
     def _process_new_data(self, state: TradingState, products) -> None:
-        """Adds new data point to historical data."""
+        """
+        Process one timestamp for storage into trader _df_history attribute
+        For each product, add in timestamp, product, prev mid price, avg cost, curr position, and sma_5, 20, 50
+        :param state:
+        :param products:
+        :return:
+        """
 
         timestamp = np.ones(len(products)) * state.timestamp  # time stamp for each product
 
         mid_prices = []  # mid prices
-        avg_cost = []  # avg cost
+        avg_cost = []
+        # Average cost calculation
         for key in state.order_depths.keys():
             l1_ask = min(state.order_depths[key].sell_orders)
             l1_bid = max(state.order_depths[key].buy_orders)
@@ -296,15 +263,29 @@ class Trader:
             mid_prices.append(cur_mid)
             avg_cost.append(self.get_average_price(state, key))
 
-        # avg_cost = self.get_average_price(state, products) # avg costs
+        # current positions
+        curr_positions = [state.position[product]
+                          if product in state.position.keys()
+                          else 0
+                          for product in products]
 
-        our_columns = ['timestamp', 'product', 'mid_prices', 'avg_cost']
+        # placeholder sma
+        sma_5, sma_20, sma_50 = [-1, -1], [-1, -1], [-1, -1]
 
-        data = list(zip(timestamp, products, mid_prices, avg_cost))
+        our_columns = ['timestamp', 'product', 'mid_prices', 'avg_cost',
+                       'curr_position', 'sma_5',
+                       'sma_20', 'sma_50']
 
+        # Put information back into _df_history
+        data = list(zip(timestamp, products, mid_prices, avg_cost, curr_positions, sma_5, sma_20, sma_50))
         temp_df = pd.DataFrame(data, columns=our_columns)
+        self._df_history = pd.concat([self._df_history, temp_df])
+        # Update the last len(products) rows of _df_history's SMA
+        for i in range(1, len(products) + 1):
+            sma_5, sma_20, sma_50 = self._get_sma(state, self._df_history.iloc[-i, 1])
+            self._df_history.iloc[-i, 5:8] = [sma_5, sma_20, sma_50]
 
-        self._history = pd.concat([self._history, temp_df])
+
 
     ## Run ##
     def run(self, state: TradingState) -> Dict[str, List[Order]]:
@@ -374,6 +355,7 @@ class Trader:
             buy_quantity, sell_quantity = self.get_quantity(product, max_long, max_short, cur_pos, momo_flag)
             buy_quantity = min(buy_quantity, 20)  # max_long can be > 20 we dont ever want to
             sell_quantity = max(sell_quantity, -20)
+
             # ORDER UP!
             # if product == 'PEARLS'/'BANANAS':
             a = min(order_depth.sell_orders.keys())
@@ -382,9 +364,11 @@ class Trader:
             # L1 and Order Up
             # best_ask = min(order_depth.sell_orders.keys())
             # best_ask_volume = order_depth.sell_orders[best_ask]
-            best_ask_volume = max(order_depth.sell_orders[a],1)
-            best_bid_volume = max(order_depth.buy_orders[b],1)
-            L1_ratio = best_bid_volume/ best_ask_volume
+            
+            best_ask_volume = max(order_depth.sell_orders[a], 1)
+            best_bid_volume = max(order_depth.buy_orders[b], 1)
+            L1_ratio = best_bid_volume / best_ask_volume
+            
             spread = a - b
             if product == 'BANANAS':
                 if L1_ratio > 1.1:  #bullish 1.01 1.02 1.03 1.05 1.1
@@ -409,28 +393,28 @@ class Trader:
             # if product == 'BANANAS':
             #     orders.append(Order(product, mm_ask, sell_quantity))
             #     orders.append(Order(product, mm_bid, buy_quantity))
-            
+
             if product == 'PEARLS':
-                if L1_ratio > 1.02 and spread < 4: #1.01 #1.02
+                if L1_ratio > 1.02 and spread < 4:  # 1.01 #1.02
                     sell_quantity = sell_quantity + 1
-                elif L1_ratio < 0.98 and spread < 4: 
+                elif L1_ratio < 0.98 and spread < 4:
                     buy_quantity = buy_quantity - 1
-            
+
                 orders.append(Order(product, mm_ask, sell_quantity))
                 orders.append(Order(product, mm_bid, buy_quantity))
 
             result[product] = orders
 
-            print("state.own_trades = ", own_trades)
-            print("state.market_trades = ", market_trades)
-            print("state.position = ", position)
-            if state.timestamp == 1999 * 100:
-                print(f"{self.times_position_not_matched} times quantity and position not matched")
-                print("\n Here is the final DataFrame \n")
-                print(self._history)
-            print("orders placed = ", orders)
-            print("Avg price = ", self.get_average_price(state=state, product=product))
-            print("Current position amount = ", self.curr_avg_price)
-            print("------------------------------------------------------------------------------------------\n")
+            #print("state.own_trades = ", own_trades)
+            #print("state.market_trades = ", market_trades)
+            #print("state.position = ", position)
+            #if state.timestamp == 1999 * 100:
+            #    print(f"{self.times_position_not_matched} times quantity and position not matched")
+            #    print("\n Here is the final DataFrame \n")
+            #    print(self._df_history)
+            #print("orders placed = ", orders)
+            #print("Avg price = ", self.get_average_price(state=state, product=product))
+            #print("Current position amount = ", self.curr_avg_price)
+            #print("------------------------------------------------------------------------------------------\n")
 
         return result
