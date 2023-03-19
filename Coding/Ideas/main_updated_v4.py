@@ -11,69 +11,43 @@ class Trader:
             columns=['PEARLS', 'BANANAS'],
             index=[0])
 
-    def _get_sma_values_and_indicator(self, state: TradingState, product: str) -> bool:
-        """Computes SMA5, SMA15, SMA40 and SMA90 with respective bands values"""
+    def _get_ewm_values_and_indicator(self, state: TradingState, product: str) -> bool:
+        """Computes EWM5, EWM12, EWM26, MACD and signaling."""
         history_product = self._history[product]
         current_mid_price = history_product[state.timestamp]
 
         bullish = -1
-        sma_5, sma_15, sma_40, sma_90 = -1, -1, -1, -1
+        ewm_5, ewm_26, signal, macd = -1, -1, -1, -1
+        sma_90 = -1
 
         if state.timestamp > 5 * 100:
-            # sma_5 = history_product.rolling(window=5).mean()[state.timestamp]
-            # std_5 = history_product.rolling(window=5).std()[state.timestamp]
-            sma_5 = history_product.ewm(span=5).mean()[state.timestamp]
-            std_5 = history_product.ewm(span=5).std()[state.timestamp]
-        if state.timestamp > 15 * 100:
-            # sma_15 = history_product.rolling(window=15).mean()[state.timestamp]
-            # std_15 = history_product.rolling(window=15).std()[state.timestamp]
-            sma_15 = history_product.ewm(span=15).mean()[state.timestamp]
-            std_15 = history_product.ewm(span=15).std()[state.timestamp]
-        if state.timestamp > 40 * 100:
-            sma_40 = history_product.rolling(window=40).mean()[state.timestamp]
-            # std_40 = history_product.rolling(window=40).std()[state.timestamp]
-            # sma_40 = history_product.ewm(span=40).mean()[state.timestamp]
-        if state.timestamp > 90 * 100:
-            sma_90 = history_product.rolling(window=90).mean()[state.timestamp]
-            # std_90 = history_product.rolling(window=90).std()[state.timestamp]
-            # sma_90 = history_product.ewm(span=90).mean()[state.timestamp]
+            ewm_5 = history_product.ewm(span=5, adjust=False).mean()[state.timestamp]
+            std_5 = history_product.ewm(span=5, adjust=False).std()[state.timestamp]
+        if state.timestamp > 26 * 100:
+            span_12 = history_product.ewm(span=12, adjust=False).mean()
+            span_26 = history_product.ewm(span=26, adjust=False).mean()
+            macd_series = span_12 - span_26
+            span_9_macd = macd_series.ewm(span=9, adjust=False).mean()
 
-        values = [sma_5, sma_15, sma_40, sma_90]
+            macd = macd_series[state.timestamp]
+            signal = span_9_macd[state.timestamp]
+
+        if state.timestamp > 90 * 100:
+            sma_90 = history_product.ewm(span=90).mean()[state.timestamp]
+
+        values = [ewm_5, macd, signal, sma_90]
 
         if product == "BANANAS":
-            if sma_15 < sma_5 and current_mid_price > sma_15 + 2*std_5:
+            if signal < macd: # bullish
                 bullish = True
-            else:
+            elif signal > macd:
                 bullish = False
 
         if product == "PEARLS":
             pass
 
-        print("SMA indicator is bullish {} for {}".format(bullish, product))
+        print("MACD indicator is bullish {} for {}".format(bullish, product))
         return values, bullish
-
-    def _hurst_exponential(self, product: str, timestamp: int, min_lag: int, max_lag: int) -> bool:
-        """Computes Hurst exponential estimate H following
-        min and max lag values.
-
-        Remark: H > 0.5 -> bullish, H < 0.5 -> reversal
-        otherwise H = 0.5 -> randomness
-        """
-        if min_lag < 1:
-            raise Exception("min_lag must be >= 1")
-        # Added condition to make sure hurst exponent can be computed
-        if timestamp < (max_lag + 1) * 100:
-            return False
-
-        data = self._history[product].values
-        lags = np.arange(min_lag, max_lag + 1)
-        tau = [np.std(np.subtract(data[lag:], data[:-lag]))
-            for lag in lags]
-        poly = np.polyfit(np.log10(lags), np.log10(tau), 1)
-        bullish = True if poly[0] > 0.5 else False
-        print("Product {} is bullish (Hurst) {}".format(product, bullish))
-
-        return bullish
 
     def _get_acceptable_quantity(
             self,
@@ -159,7 +133,7 @@ class Trader:
 
         spread = l1_ask - l1_bid
 
-        fair_value = fair_prices[0] # get sma_5
+        fair_value = fair_prices[0]
 
         if product == "PEARLS":
             # get sma_90
@@ -265,7 +239,7 @@ class Trader:
             # order_depth: OrderDepth = state.order_depths[product]
             orders: list[Order] = []
 
-            fair_prices, bullish = self._get_sma_values_and_indicator(
+            fair_prices, bullish = self._get_ewm_values_and_indicator(
                     state, product)
 
             acceptable_bid, acceptable_ask = self._get_acceptable_price(
