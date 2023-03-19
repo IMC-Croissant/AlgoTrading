@@ -7,9 +7,7 @@ import numpy as np
 
 
 class Trader:
-    _history = pd.DataFrame([[10000, 4950]],
-            columns=['PEARLS', 'BANANAS'],
-            index=[0])
+    _history = pd.DataFrame(columns=['PEARLS', 'BANANAS']) # gets replaced in first iteration
 
     def _get_ewm_values_and_indicator(self, state: TradingState, product: str) -> bool:
         """Computes EWM5, EWM12, EWM26, MACD and signaling."""
@@ -214,8 +212,10 @@ class Trader:
         temp_dataframe = pd.DataFrame([mid_prices],
             columns=products,
             index=[state.timestamp])
-
+        if len(self._history) is None:
+            self._history = temp_dataframe
         self._history = pd.concat([self._history, temp_dataframe])
+
 
     def run(self, state: TradingState) -> Dict[str, List[Order]]:
         """
