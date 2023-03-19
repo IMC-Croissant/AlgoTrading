@@ -146,6 +146,9 @@ class Trader:
                 elif l1_ask < fair_value:
                     acceptable_bid = l1_ask
 
+            acceptable_bid = 9998
+            acceptable_ask = 10002
+
         #TODO Include bollingers band
         if product == "BANANAS":
             if spread > 2:
@@ -164,6 +167,12 @@ class Trader:
 
             elif spread <= 2:
                 # crossing the book
+                ratio = l1_bid / l1_ask
+                if ratio > 1:
+                    fair_value += 1
+                else:
+                    fair_value -= 1
+
                 if l3_bid > fair_value:
                     acceptable_ask = l3_bid
                 elif l2_bid > fair_value:
