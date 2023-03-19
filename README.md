@@ -16,5 +16,5 @@ from `main_from_scratch.py`. Other versions can be used.
 * `main_updated_v2.py`: Experimental version of `main_updated.py` for long term SMA indicator. Sitting at 6.53k
 * `main_updated_v3.py`: Modified version from `main_updated.py` but using EWM instead of SMA, to be optimized. Sitting at 6.65k 
 * `main_updated_v4.py`: Includes EWM 5 for price prediction and MACD for signaling (BANANAS), SMA 90 for PEARLS. Sitting at 4.351K
-* `main_updated_v5.py`: Uses EWM 5 for fair price, MACD and dynamic quoting for BANANAS, SMA 90 for PEARLS. Sitting at 4.509K
+* `main_updated_v5.py`: Uses EWM 5 for fair price, MACD and dynamic quoting with l1 ratio for BANANAS, SMA 90 for PEARLS. Sitting at 4.81K
 
