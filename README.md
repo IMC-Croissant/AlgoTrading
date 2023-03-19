@@ -15,4 +15,5 @@ from `main_from_scratch.py`. Other versions can be used.
 * `main_updated.py`: Refactores version of old `MM_momo.py`. Based on *bullish* indicator with SMA 5, 15, 40, 90. Sitting at 6.7k
 * `main_updated_v2.py`: Experimental version of `main_updated.py` for long term SMA indicator. Sitting at 6.53k
 * `main_updated_v3.py`: Modified version from `main_updated.py` but using EWM instead of SMA, to be optimized. Sitting at 6.65k 
+* `main_updated_v4.py`: Includes EWM 5 for price prediction and MACD for signaling (BANANAS), while SMA 90 for PEARLS. Sitting at 4.351K
 
