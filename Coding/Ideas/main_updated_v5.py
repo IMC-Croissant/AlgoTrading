@@ -18,9 +18,8 @@ class Trader:
         ewm_5, ewm_26, signal, macd = -1, -1, -1, -1
         sma_90 = -1
 
-        if state.timestamp > 5 * 100:
-            ewm_5 = history_product.ewm(span=5, adjust=False).mean()[state.timestamp]
-            std_5 = history_product.ewm(span=5, adjust=False).std()[state.timestamp]
+        ewm_5 = history_product.ewm(span=5, adjust=False).mean()[state.timestamp]
+        std_5 = history_product.ewm(span=5, adjust=False).std()[state.timestamp]
         if state.timestamp > 26 * 100:
             span_12 = history_product.ewm(span=12, adjust=False).mean()
             span_26 = history_product.ewm(span=26, adjust=False).mean()
@@ -144,8 +143,8 @@ class Trader:
                 elif l1_ask < fair_value:
                     acceptable_bid = l1_ask
 
-            acceptable_bid = 9998
-            acceptable_ask = 10002
+            acceptable_bid = 10000 - (spread / 2) * 0.8
+            acceptable_ask = 10000 + (spread / 2) * 0.8
 
         #TODO Include bollingers band
         if product == "BANANAS":
@@ -159,11 +158,11 @@ class Trader:
                     alpha = 1.0
                 else:
                     alpha = 1.5
-
                 acceptable_bid = fair_value - pillow * alpha + skew
                 acceptable_ask = fair_value + pillow * alpha + skew
 
             elif spread <= 2:
+
                 # crossing the book
                 ratio = l1_bid / l1_ask
                 if ratio > 1:
@@ -177,6 +176,8 @@ class Trader:
                     acceptable_ask = l2_bid
                 elif l1_bid > fair_value:
                     acceptable_ask = l1_bid
+                elif ratio > 1:
+                    acceptable_ask = fair_value + 3
 
                 if l3_ask < fair_value:
                     acceptable_bid = l3_ask
@@ -184,6 +185,8 @@ class Trader:
                     acceptable_bid = l2_ask
                 elif l1_ask < fair_value:
                     acceptable_bid = l1_ask
+                elif ratio < 1:
+                    acceptable_bid = fair_value - 3
 
 
         acceptable_bid = math.ceil(acceptable_bid)
