@@ -112,55 +112,69 @@ class Trader:
         spread = l1_ask - l1_bid
 
         fair_value = fair_prices[0]
-
+        cross_volume = 0
         if product == "PEARLS":
             # get sma_90
             fair_value = fair_prices[-1] if fair_prices[-1] > -1 else 10000
             # still not crossing the books
-            if spread > 3:
-                if isinstance(bullish, bool) and bullish:
-                    acceptable_bid = l1_bid + 1
-                    acceptable_ask = l1_ask
-                elif isinstance(bullish, bool) and not bullish:
-                    acceptable_bid = l1_bid
-                    acceptable_ask = l1_ask - 1
-                else:
-                    acceptable_bid = l1_bid
-                    acceptable_ask = l1_ask
-            elif spread <= 3:
-                # crossing the book
-                if l3_bid > fair_value:
-                    acceptable_ask = l3_bid
-                elif l2_bid > fair_value:
-                    acceptable_ask = l2_bid
-                elif l1_bid > fair_value:
-                    acceptable_ask = l1_bid
+            #if spread > 3:
+            #    if isinstance(bullish, bool) and bullish:
+            #        acceptable_bid = l1_bid + 1
+            #        acceptable_ask = l1_ask
+            #    elif isinstance(bullish, bool) and not bullish:
+            #        acceptable_bid = l1_bid
+            #        acceptable_ask = l1_ask - 1
+            #    else:
+            #        acceptable_bid = l1_bid
+            #        acceptable_ask = l1_ask
+            #elif spread <= 3:
+            # crossing the book
 
-                if l3_ask < fair_value:
-                    acceptable_bid = l3_ask
-                elif l2_ask < fair_value:
-                    acceptable_bid = l2_ask
-                elif l1_ask < fair_value:
-                    acceptable_bid = l1_ask
+            if l3_bid > fair_value:
+                acceptable_ask = l3_bid
+                cross_volume += state.order_depths[product].buy_orders[l3_bid]
+                cross_volume += state.order_depths[product].buy_orders[l2_bid]
+                cross_volume += state.order_depths[product].buy_orders[l1_bid]
+            elif l2_bid > fair_value:
+                acceptable_ask = l2_bid
+                cross_volume += state.order_depths[product].buy_orders[l2_bid]
+                cross_volume += state.order_depths[product].buy_orders[l1_bid]
+            elif l1_bid > fair_value:
+                acceptable_ask = l1_bid
+                cross_volume += state.order_depths[product].buy_orders[l1_bid]
+            else:
+                acceptable_ask = 10000 + (spread / 2) * 0.8
 
-            acceptable_bid = 10000 - (spread / 2) * 0.8
-            acceptable_ask = 10000 + (spread / 2) * 0.8
+            if l3_ask < fair_value:
+                acceptable_bid = l3_ask
+                cross_volume += state.order_depths[product].sell_orders[l3_ask]
+                cross_volume += state.order_depths[product].sell_orders[l2_ask]
+                cross_volume += state.order_depths[product].sell_orders[l1_ask]
+            elif l2_ask < fair_value:
+                acceptable_bid = l2_ask
+                cross_volume += state.order_depths[product].sell_orders[l2_ask]
+                cross_volume += state.order_depths[product].sell_orders[l1_ask]
+            elif l1_ask < fair_value:
+                acceptable_bid = l1_ask
+                cross_volume += state.order_depths[product].sell_orders[l1_ask]
+            else:
+                acceptable_bid = 10000 - (spread / 2) * 0.8
 
         #TODO Include bollingers band
         if product == "BANANAS":
             if spread > 2:
                 pillow = spread / 2
                 alpha, skew = 1, 0
-
+                #alpha setting
                 if spread >= 6:
                     alpha = 0.7
                 elif spread > 3 and spread < 6:
                     alpha = 1.0
                 else:
                     alpha = 1.5
-                acceptable_bid = fair_value - pillow * alpha + skew
-                acceptable_ask = fair_value + pillow * alpha + skew
 
+                acceptable_ask = fair_value + pillow * alpha + skew
+                acceptable_bid = fair_value - pillow * alpha + skew
             elif spread <= 2:
 
                 # crossing the book
