@@ -162,28 +162,27 @@ class Trader:
 
         #TODO Include bollingers band
         if product == "BANANAS":
+
             if spread > 2:
                 pillow = spread / 2
-                alpha, skew = 1, 0
+                alpha, skew = 0.8, 0
                 #alpha setting
-                if spread >= 6:
-                    alpha = 0.7
-                elif spread > 3 and spread < 6:
-                    alpha = 1
-                else:
-                    alpha = 1.5
+                #if spread >= 6:
+                #    alpha = 0.8
+                #elif spread > 3 and spread < 6:
+                #    alpha = 1
+                #else:
+                #    alpha = 1.5
 
                 acceptable_ask = fair_value + pillow * alpha + skew
                 acceptable_bid = fair_value - pillow * alpha + skew
             elif spread <= 2:
-
-                # crossing the book
                 ratio = l1_bid / l1_ask
                 if ratio > 1:
                     fair_value += 1
                 else:
                     fair_value -= 1
-
+                # crossing the book
                 if l3_bid > fair_value:
                     acceptable_ask = l3_bid
                 elif l2_bid > fair_value:
@@ -240,6 +239,7 @@ class Trader:
         and outputs a list of orders to be sent
         """
         result = {}
+        print('add ratio market making to higher spreads')
         # print("current state own orders ", state.own_trades)
         # print("current state observation ", state.observations)
         self._process_new_data(state)
