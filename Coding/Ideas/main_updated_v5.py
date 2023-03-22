@@ -32,7 +32,7 @@ class Trader:
         if state.timestamp > 90 * 100:
             sma_90 = history_product.ewm(span=90).mean()[state.timestamp]
 
-        values = [ewm_5, macd, signal, sma_90]
+        values = [history_product.ewm(span=8, adjust=False).mean()[state.timestamp], macd, signal, sma_90]
 
         if product == "BANANAS":
             if signal < macd: # bullish
@@ -143,7 +143,7 @@ class Trader:
                 acceptable_ask = l1_bid
                 cross_volume += state.order_depths[product].buy_orders[l1_bid]
             else:
-                acceptable_ask = 10000 + (spread / 2) * 0.8
+                acceptable_ask = 10000 + (spread / 2)*0.8
 
             if l3_ask < fair_value:
                 acceptable_bid = l3_ask
@@ -158,7 +158,7 @@ class Trader:
                 acceptable_bid = l1_ask
                 cross_volume += state.order_depths[product].sell_orders[l1_ask]
             else:
-                acceptable_bid = 10000 - (spread / 2) * 0.8
+                acceptable_bid = 10000 - (spread / 2)*0.8
 
         #TODO Include bollingers band
         if product == "BANANAS":
@@ -169,7 +169,7 @@ class Trader:
                 if spread >= 6:
                     alpha = 0.7
                 elif spread > 3 and spread < 6:
-                    alpha = 1.0
+                    alpha = 1
                 else:
                     alpha = 1.5
 
@@ -240,7 +240,6 @@ class Trader:
         and outputs a list of orders to be sent
         """
         result = {}
-
         # print("current state own orders ", state.own_trades)
         # print("current state observation ", state.observations)
         self._process_new_data(state)
