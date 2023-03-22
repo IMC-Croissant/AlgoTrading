@@ -34,7 +34,7 @@ class Trader:
 
         values = [history_product.ewm(span=8, adjust=False).mean()[state.timestamp], macd, signal, sma_90]
 
-        if product == "BANANAS" or product == 'COCONUTS' or product == 'PINA_COLADA':
+        if product == "BANANAS" or product == 'COCONUTS' or product == 'PINA_COLADAS':
             if signal < macd: # bullish
                 bullish = True
             elif signal > macd:
