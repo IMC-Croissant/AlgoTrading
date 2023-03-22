@@ -7,7 +7,7 @@ import numpy as np
 
 
 class Trader:
-    _history = pd.DataFrame(columns=['PEARLS', 'BANANAS']) # gets replaced in first iteration
+    _history = pd.DataFrame(columns=['PEARLS', 'BANANAS', 'PINA_COLADAS', 'COCONUTS']) # gets replaced in first iteration
 
     def _get_ewm_values_and_indicator(self, state: TradingState, product: str) -> bool:
         """Computes EWM5, EWM12, EWM26, MACD and signaling."""
@@ -34,7 +34,7 @@ class Trader:
 
         values = [history_product.ewm(span=8, adjust=False).mean()[state.timestamp], macd, signal, sma_90]
 
-        if product == "BANANAS":
+        if product == "BANANAS" or product == 'COCONUTS' or product == 'PINA_COLADA':
             if signal < macd: # bullish
                 bullish = True
             elif signal > macd:
@@ -58,12 +58,12 @@ class Trader:
         if bool(state.position):
             if product in state.position.keys():
                 current_volume = state.position[product]
+        limits = {'PEARLS': 20, 'BANANAS': 20, 'PINA_COLADAS': 600, 'COCONUTS': 300}
+        max_long_position = limits[product] - current_volume
+        max_short_position = -limits[product] - current_volume
 
-        max_long_position = 20 - current_volume
-        max_short_position = -20 - current_volume
-
-        buy_volume = min(20, max_long_position)
-        sell_volume = max(-20, max_short_position)
+        buy_volume = min(limits[product], max_long_position)
+        sell_volume = max(-limits[product], max_short_position)
 
         print("acceptable buy vol {} sell vol {} product {}".format(
             buy_volume, sell_volume, product))
@@ -150,7 +150,7 @@ class Trader:
                 acceptable_bid = 10000 - (spread / 2)*0.8
 
         #TODO Include bollingers band
-        if product == "BANANAS":
+        if product == "BANANAS" or product == 'PINA_COLADAS' or product == 'COCONUTS':
 
             if spread > 2:
                 pillow = spread / 2
