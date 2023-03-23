@@ -1,32 +1,13 @@
-from typing import Dict, List, Any 
-from datamodel import OrderDepth, TradingState, Order, ProsperityEncoder, Symbol
+from typing import Dict, List
+from datamodel import OrderDepth, TradingState, Order
 from pandas import DataFrame
 import math
 import pandas as pd
 import numpy as np
-import json
 
-class Logger:
-    def __init__(self) -> None:
-        self.logs = ""
-
-    def print(self, *objects: Any, sep: str = " ", end: str = "\n") -> None:
-        self.logs += sep.join(map(str, objects)) + end
-
-    def flush(self, state: TradingState, orders: dict[Symbol, list[Order]]) -> None:
-        print(json.dumps({
-            "state": state,
-            "orders": orders,
-            "logs": self.logs,
-        }, cls=ProsperityEncoder, separators=(",", ":"), sort_keys=True))
-
-        self.logs = ""
-
-logger = Logger()
 
 class Trader:
     _history = pd.DataFrame(columns=['PEARLS', 'BANANAS', 'PINA_COLADAS', 'COCONUTS']) # gets replaced in first iteration
-
 
     def _get_ewm_values_and_indicator(self, state: TradingState, product: str) -> bool:
         """Computes EWM5, EWM12, EWM26, MACD and signaling."""
@@ -38,6 +19,7 @@ class Trader:
         sma_90 = -1
 
         ewm_5 = history_product.ewm(span=5, adjust=False).mean()[state.timestamp]
+        ewm_30 = history_product.ewm(span=30, adjust=False).mean()[state.timestamp]
         std_5 = history_product.ewm(span=5, adjust=False).std()[state.timestamp]
         if state.timestamp > 26 * 100:
             span_12 = history_product.ewm(span=12, adjust=False).mean()
@@ -53,7 +35,8 @@ class Trader:
 
         values = [history_product.ewm(span=8, adjust=False).mean()[state.timestamp], macd, signal, sma_90]
 
-        if product == "BANANAS" or product == 'COCONUTS' or product == 'PINA_COLADAS':
+        if product == "BANANAS":
+        # if product == "BANANAS" or product == 'COCONUTS' or product == 'PINA_COLADAS':
             if signal < macd: # bullish
                 bullish = True
             elif signal > macd:
@@ -61,8 +44,14 @@ class Trader:
 
         if product == "PEARLS":
             pass
+        
+        if product == 'COCONUTS' or product == 'PINA_COLADAS':
+            if ewm_5 > ewm_30: # bullish
+                bullish = True
+            elif ewm_5 < ewm_30:
+                bullish = False
 
-        logger.print("MACD indicator is bullish {} for {}".format(bullish, product))
+        print("MACD indicator is bullish {} for {}".format(bullish, product))
         return values, bullish
 
     def _get_acceptable_quantity(
@@ -84,10 +73,35 @@ class Trader:
         buy_volume = min(limits[product], max_long_position)
         sell_volume = max(-limits[product], max_short_position)
 
-        logger.print("acceptable buy vol {} sell vol {} product {}".format(
+        print("acceptable buy vol {} sell vol {} product {}".format(
             buy_volume, sell_volume, product))
 
         return buy_volume, sell_volume
+    
+    def pair_trade(PINA_COLADAS_prices, COCONUTS_prices):
+        """
+        This function implements a basic pair trading strategy between PINA_COLADAS and COCONUTS.
+        Parameters:
+        PINA_COLADAS_prices (list or np.array): A list or numpy array of historical prices for PINA_COLADAS
+        COCONUTS_prices (list or np.array): A list or numpy array of historical prices for COCONUTS
+        """
+        # Calculate the spread between the two products
+        spread = PINA_COLADAS_prices - COCONUTS_prices
+        
+        # Calculate the mean and standard deviation of the spread
+        spread_mean = spread.mean(span=20)
+        spread_std = spread.std(span=20)
+        
+        # Generate the trading signals based on the spread
+        trades = []
+        for i in range(len(spread)):
+            if spread[i] > spread_mean + spread_std:
+                return -1  # short PINA_COLADAS and long COCONUTS
+            elif spread[i] < spread_mean - spread_std:
+                return 1   # long PINA_COLADAS and short COCONUTS
+            else:
+                return 0   # no trade
+        
 
     def _get_acceptable_price(
             self,
@@ -97,8 +111,8 @@ class Trader:
             bullish: bool) -> tuple:
         """Computes acceptable price from historical data. """
         # history_product = self._history[product]
-        # logger.print("history_product \n", history_product)
-        # logger.print("state timestamp ", state.timestamp)
+        # print("history_product \n", history_product)
+        # print("state timestamp ", state.timestamp)
 
         acceptable_bid = 0
         acceptable_ask = 1000000
@@ -169,8 +183,56 @@ class Trader:
                 acceptable_bid = 10000 - (spread / 2)*0.8
 
         #TODO Include bollingers band
-        if product == "BANANAS" or product == 'PINA_COLADAS' or product == 'COCONUTS':
+        if product == 'PINA_COLADAS' or product == 'COCONUTS':
+            pair_trade(PINA_COLADAS_prices, COCONUTS_prices):
+            
 
+            
+            
+            
+            
+            # if spread > 4:
+            #     pillow = spread / 2
+            #     alpha, skew = 0.8, 0
+            #     #alpha setting
+            #     #if spread >= 6:
+            #     #    alpha = 0.8
+            #     #elif spread > 3 and spread < 6:
+            #     #    alpha = 1
+            #     #else:
+            #     #    alpha = 1.5
+
+            #     acceptable_ask = fair_value + pillow * alpha + skew
+            #     acceptable_bid = fair_value - pillow * alpha + skew
+            # elif spread <= 3:
+            #     ratio = l1_bid / l1_ask
+            #     if ratio > 1:
+            #         fair_value += 1
+            #     else:
+            #         fair_value -= 1
+            #     pillow = spread / 2
+            #     alpha, skew = 0.8, 0
+
+            #     # crossing the book
+            #     if l3_bid > fair_value:
+            #         acceptable_ask = l3_bid
+            #     elif l2_bid > fair_value:
+            #         acceptable_ask = l2_bid
+            #     elif l1_bid > fair_value:
+            #         acceptable_ask = l1_bid
+            #     elif ratio > 1:
+            #         acceptable_ask = fair_value + pillow * alpha
+
+            #     if l3_ask < fair_value:
+            #         acceptable_bid = l3_ask
+            #     elif l2_ask < fair_value:
+            #         acceptable_bid = l2_ask
+            #     elif l1_ask < fair_value:
+            #         acceptable_bid = l1_ask
+            #     elif ratio < 1:
+            #         acceptable_bid = fair_value - pillow * alpha
+            
+        if product == "BANANAS":
             if spread > 2:
                 pillow = spread / 2
                 alpha, skew = 0.8, 0
@@ -216,7 +278,7 @@ class Trader:
         acceptable_bid = math.ceil(acceptable_bid)
         acceptable_ask = math.floor(acceptable_ask)
 
-        logger.print("acceptable bid {} ask {} product {}".format(
+        print("acceptable bid {} ask {} product {}".format(
             acceptable_bid, acceptable_ask, product))
 
         return acceptable_bid, acceptable_ask
@@ -250,11 +312,11 @@ class Trader:
         and outputs a list of orders to be sent
         """
         result = {}
-        logger.print('add ratio market making to higher spreads')
-        # logger.print("current state own orders ", state.own_trades)
-        # logger.print("current state observation ", state.observations)
+        print('add ratio market making to higher spreads')
+        # print("current state own orders ", state.own_trades)
+        # print("current state observation ", state.observations)
         self._process_new_data(state)
-        # logger.print("current data ", self._history)
+        # print("current data ", self._history)
 
         for product in state.order_depths.keys():
             # order_depth: OrderDepth = state.order_depths[product]
@@ -273,5 +335,5 @@ class Trader:
             orders.append(Order(product, acceptable_ask, sell_quantity))
 
             result[product] = orders
-        logger.flush(state, orders)
+
         return result
