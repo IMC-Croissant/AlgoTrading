@@ -1,13 +1,32 @@
-from typing import Dict, List
-from datamodel import OrderDepth, TradingState, Order
+from typing import Dict, List, Any 
+from datamodel import OrderDepth, TradingState, Order, ProsperityEncoder, Symbol
 from pandas import DataFrame
 import math
 import pandas as pd
 import numpy as np
+import json
 
+class Logger:
+    def __init__(self) -> None:
+        self.logs = ""
+
+    def print(self, *objects: Any, sep: str = " ", end: str = "\n") -> None:
+        self.logs += sep.join(map(str, objects)) + end
+
+    def flush(self, state: TradingState, orders: dict[Symbol, list[Order]]) -> None:
+        print(json.dumps({
+            "state": state,
+            "orders": orders,
+            "logs": self.logs,
+        }, cls=ProsperityEncoder, separators=(",", ":"), sort_keys=True))
+
+        self.logs = ""
+
+logger = Logger()
 
 class Trader:
     _history = pd.DataFrame(columns=['PEARLS', 'BANANAS', 'PINA_COLADAS', 'COCONUTS']) # gets replaced in first iteration
+
 
     def _get_ewm_values_and_indicator(self, state: TradingState, product: str) -> bool:
         """Computes EWM5, EWM12, EWM26, MACD and signaling."""
@@ -43,7 +62,7 @@ class Trader:
         if product == "PEARLS":
             pass
 
-        print("MACD indicator is bullish {} for {}".format(bullish, product))
+        logger.print("MACD indicator is bullish {} for {}".format(bullish, product))
         return values, bullish
 
     def _get_acceptable_quantity(
@@ -65,7 +84,7 @@ class Trader:
         buy_volume = min(limits[product], max_long_position)
         sell_volume = max(-limits[product], max_short_position)
 
-        print("acceptable buy vol {} sell vol {} product {}".format(
+        logger.print("acceptable buy vol {} sell vol {} product {}".format(
             buy_volume, sell_volume, product))
 
         return buy_volume, sell_volume
@@ -78,8 +97,8 @@ class Trader:
             bullish: bool) -> tuple:
         """Computes acceptable price from historical data. """
         # history_product = self._history[product]
-        # print("history_product \n", history_product)
-        # print("state timestamp ", state.timestamp)
+        # logger.print("history_product \n", history_product)
+        # logger.print("state timestamp ", state.timestamp)
 
         acceptable_bid = 0
         acceptable_ask = 1000000
@@ -197,7 +216,7 @@ class Trader:
         acceptable_bid = math.ceil(acceptable_bid)
         acceptable_ask = math.floor(acceptable_ask)
 
-        print("acceptable bid {} ask {} product {}".format(
+        logger.print("acceptable bid {} ask {} product {}".format(
             acceptable_bid, acceptable_ask, product))
 
         return acceptable_bid, acceptable_ask
@@ -231,11 +250,11 @@ class Trader:
         and outputs a list of orders to be sent
         """
         result = {}
-        print('add ratio market making to higher spreads')
-        # print("current state own orders ", state.own_trades)
-        # print("current state observation ", state.observations)
+        logger.print('add ratio market making to higher spreads')
+        # logger.print("current state own orders ", state.own_trades)
+        # logger.print("current state observation ", state.observations)
         self._process_new_data(state)
-        # print("current data ", self._history)
+        # logger.print("current data ", self._history)
 
         for product in state.order_depths.keys():
             # order_depth: OrderDepth = state.order_depths[product]
@@ -254,5 +273,5 @@ class Trader:
             orders.append(Order(product, acceptable_ask, sell_quantity))
 
             result[product] = orders
-
+        logger.flush(state, orders)
         return result
