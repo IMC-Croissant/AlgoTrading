@@ -26,7 +26,7 @@ class Trader:
                 elif sma_low < sma_high:
                     self._buy_indicator[product] = False
                     self._sell_indicator[product] = True
-
+        def
         history_product = self._history[product]
         current_mid_price = history_product[state.timestamp]
 
@@ -97,8 +97,11 @@ class Trader:
         max_long_position = limits[product] - current_volume
         max_short_position = -limits[product] - current_volume
 
-        buy_volume = min(limits[product], max_long_position)
-        sell_volume = max(-limits[product], max_short_position)
+        if
+        buy_volume = max_long_position
+        sell_volume = max_short_position
+        #buy_volume = min(limits[product], max_long_position)
+        #sell_volume = max(-limits[product], max_short_position)
 
 
         print("acceptable buy vol {} sell vol {} product {}".format(
