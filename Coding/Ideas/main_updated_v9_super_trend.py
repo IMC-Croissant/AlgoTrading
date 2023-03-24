@@ -298,7 +298,11 @@ class Trader:
                     acceptable_bid = l1_ask
                 elif ratio < 1:
                     acceptable_bid = fair_value - pillow * alpha
-
+            elif product == "COCONUTS" or product == "PINA_COLADAS":
+                if self._buy_indicator[product]:
+                    acceptable_bid = fair_value
+                elif self._sell_indicator[product]:
+                    acceptable_ask = fair_value
 
         acceptable_bid = math.ceil(acceptable_bid)
         acceptable_ask = math.floor(acceptable_ask)
@@ -344,8 +348,8 @@ class Trader:
         # print("current data ", self._history)
 
         trade_pairs = self._trade_pairs(state) # boolean if we trade, -1 if we dont.
-        self.coco_mid_g.append(self.get_mid('COCONUTS'))
-        self.pina_mid_g.append(self.get_mid('PINA_COLADAS'))
+        self.coco_mid_g.append(self.get_mid(state,'COCONUTS'))
+        self.pina_mid_g.append(self.get_mid(state,'PINA_COLADAS'))
 
         for product in state.order_depths.keys():
 
@@ -354,21 +358,37 @@ class Trader:
 
             fair_prices, bullish = self._get_ewm_values_and_indicator(
                     state, product)
-            
+            pina_bid, pina_ask = self.get_l1(state, 'PINA_COLADAS')
+            coco_bid, coco_ask = self.get_l1(state, 'COCONUTS')
             # sUPER TREND
-            if product == 'PINA_COLADAS' or product == 'COCONUTS': 
-
+            if product == 'COCONUTS': 
+                acceptable_bid, acceptable_ask = self._get_acceptable_price(
+                    state, product, fair_prices, bullish)
                 # set quantities and prices that we may trade
-                pina_long_quant, pina_short_quant = self.get_max_quantity(state, 'PINA_COLADAS')
                 coco_long_quant, coco_short_quant = self.get_max_quantity(state, 'COCONUTS')
 
-                pina_bid, pina_ask = self.get_l1(state, 'PINA_COLADAS')
-                coco_bid, coco_ask = self.get_l1(state, 'COCONUTS')
-
-                if len(self.coco_mid_g) > 10:
+                if len(self.coco_mid_g) > 50:
                     my_super = self.super_trend(self.coco_mid_g, 7, 3.0)
-                    my_super['super_trend']
-
+                    super_trend = my_super['super_trend']
+                    trend = my_super['trend']
+                    if trend[-1] == 1:
+                        orders.append(Order(product, coco_ask, coco_long_quant))
+                    elif trend[-1] == -1:
+                        orders.append(Order(product, coco_bid, coco_short_quant))
+                        
+            if product == 'PINA_COLADAS':
+                acceptable_bid, acceptable_ask = self._get_acceptable_price(
+                    state, product, fair_prices, bullish)
+                # set quantities and prices that we may trade
+                pina_long_quant, pina_short_quant = self.get_max_quantity(state, 'PINA_COLADAS')
+                if len(self.pina_mid_g) > 50:
+                    my_super = self.super_trend(self.pina_mid_g, 7, 3.0)
+                    super_trend = my_super['super_trend']
+                    trend = my_super['trend']
+                    if trend[-1] == 1:
+                        orders.append(Order(product, pina_ask, pina_long_quant))
+                    elif trend[-1] == -1:
+                        orders.append(Order(product, pina_bid, pina_short_quant))
 
 
             else:
