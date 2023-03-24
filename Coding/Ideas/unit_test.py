@@ -16,6 +16,16 @@ listings = {
 		product="BANANAS",
 		denomination="SEASHELLS",
 	),
+    'COCONUTS': Listing(
+		symbol='COCONUTS',
+        product='COCONUTS', 
+        denomination='COCONUTS',
+	),
+    'PINA_COLADAS': Listing(
+		symbol = 'PINA_COLADAS', 
+        product='PINA_COLADAS', 
+        denomination='PINA_COLADAS',
+	)
 }
 
 order_depths = {
@@ -24,6 +34,14 @@ order_depths = {
 		sell_orders={20: -5, 13: -3}
 	),
 	"BANANAS": OrderDepth(
+		buy_orders={142: 3, 141: 5},
+		sell_orders={144: -5, 145: -8}
+	),
+    "COCONUTS": OrderDepth(
+		buy_orders={142: 3, 141: 5},
+		sell_orders={144: -5, 145: -8}
+	),
+    "PINA_COLADAS": OrderDepth(
 		buy_orders={142: 3, 141: 5},
 		sell_orders={144: -5, 145: -8}
 	),

@@ -8,7 +8,77 @@ import numpy as np
 
 class Trader:
     _history = pd.DataFrame(columns=['PEARLS', 'BANANAS'])  # gets replaced in first iteration
+    product_limits = {'PEARLS': 20, 'BANANAS': 20, 'PINA_COLADAS': 300, 'COCONUTS': 600}
 
+    def get_max_quantity(self, state: TradingState, product: str): 
+        current_volume = 0
+        if bool(state.position): 
+            if product in state.position.keys():
+                current_volume = state.position[product]
+
+        max_long_position = self.product_limits[product] - current_volume
+        max_short_position = -self.product_limits[product] - current_volume
+
+        return max_long_position, max_short_position
+    def get_l1(self, state: TradingState, product: str): 
+        prod_ask = min(state.order_depths[product].sell_orders)
+        prod_bid = max(state.order_depths[product].buy_orders)
+        return prod_bid, prod_ask
+    def get_mid(self, state: TradingState, product: str): 
+        prod_ask = min(state.order_depths[product].sell_orders)
+        prod_bid = max(state.order_depths[product].buy_orders)
+        return (prod_ask + prod_bid)/2
+    
+    # Pairs Globals
+    # def Long Pair long pina, short coco
+    # def Short Pair short pina, long coco
+    pc_ratio_mean = 1.8732241724483873
+    pc_ratio_std = 0.0030937512917090376
+    ratio_norm_g = []
+    ratio_g = [] 
+    zscore_300_100_g = 0
+    trade_active = 'Neutral' # if this is true we are currently long or short a pair
+    # Trade pairs strategy 
+    def _trade_pairs(self, state: TradingState):
+        # get the price of Pina Colada and Coconuts
+        signal = -1 # -1 for no signal
+        pina_mid = self.get_mid(state, 'PINA_COLADAS')
+        coco_mid = self.get_mid(state, 'COCONUTS')
+
+        # get the price ratio
+        ratio = pina_mid/coco_mid
+        ratio_norm = (ratio - self.pc_ratio_mean)/self.pc_ratio_std
+        self.ratio_g.append(ratio)
+        self.ratio_norm_g.append(ratio_norm) # append to list of current ratio_norms
+
+        # get the ma and signal
+        if len(self.ratio_g) > 300:
+            ma300 = self.ratio_g.rolling(window = 300).mean()
+            ma100 = self.ratio_g.rolling(window = 100).mean()
+            std_300 = self.ratio_g.rolling(window = 300).std()
+            zscore_300_100 = (ma100 - ma300)/std_300 # our signal
+        
+            if zscore_300_100 > 1: # short the pair: long pina, short coco
+                signal = False # false for short 
+            elif zscore_300_100 < -1: 
+                signal = True # true for long
+            self.zscore_300_100_g  = zscore_300_100 # udate for exits
+        return signal
+    
+    def _manage_pairs(self) -> bool:
+        closeTrade = False
+        if self.trade_active == 'Long Pair' and self.zscore_300_100_g < 0: # we are currently long a pair
+            # must close trade
+            closeTrade = True
+        if self.trade_active == 'Short Pair' and self.zscore_300_100_g > 0: 
+            # must close trade
+            closeTrade = True
+        return closeTrade
+
+        
+
+
+        # 
 
     def _get_ewm_values_and_indicator(self, state: TradingState, product: str) -> bool:
         """Computes EWM5, EWM12, EWM26, MACD and signaling."""
@@ -324,36 +394,78 @@ class Trader:
         self._process_new_data(state)
         # print("current data ", self._history)
 
+        # check if we are short or long a pair
+
+        trade_pairs = self._trade_pairs(state) # boolean if we trade, -1 if we dont.
+
         for product in state.order_depths.keys():
             # order_depth: OrderDepth = state.order_depths[product]
             #put in previous trades to inventory tracker
             orders: list[Order] = []
             fair_prices, bullish = self._get_ewm_values_and_indicator(
                 state, product)
+            
+            # pairs trading
+            if product == 'PINA_COLADAS' or product == 'COCONUTS': 
 
-            acceptable_bid_cross, acceptable_ask_cross, acceptable_bid_cross_vol_raw, acceptable_ask_cross_vol_raw = \
-                self.get_cross_book_prices(state, product, fair_prices, bullish)
-            # the volumes for crossing the book might be out of bounds, ie ask for 5 when we're already position -20
-            # use get acceptable cross volume to get max volumes we can place
-            acceptable_bid_cross_vol, acceptable_ask_cross_vol = \
-                self._get_acceptable_cross_volume(state, product,
-                                                  acceptable_bid_cross_vol_raw, acceptable_ask_cross_vol_raw)
-            # Place cross orders
-            if acceptable_bid_cross_vol != 0:
-                orders.append(Order(product, acceptable_bid_cross, acceptable_bid_cross_vol))
-            if acceptable_ask_cross_vol != 0:
-                orders.append(Order(product, acceptable_ask_cross, acceptable_ask_cross_vol))
+                # set quantities and prices that we may trade
+                pina_long_quant, pina_short_quant = self.get_max_quantity(state, 'PINA_COLADAS')
+                coco_long_quant, coco_short_quant = self.get_max_quantity(state, 'COCONUTS')
+
+                pina_bid, pina_ask = self.get_l1(state, 'PINA_COLADAS')
+                coco_bid, coco_ask = self.get_l1(state, 'COCONUTS')
+
+                # check if we are long pair already, if we are not and have signal to long pair, we long!
+                if trade_pairs == True and (self.trade_active == 'Neutral' or self.trade_active == 'Short Pair'):   
+                    orders.append(Order('PINA_COLADAS', pina_ask+1, pina_long_quant))
+                    orders.append(Order('COCONUTS', coco_bid-1, coco_short_quant))
+                    self.trade_active == 'Long Pair' # update if we are in trade or not
+                # check if we are short pair
+                elif self.trade_active == 'Long Pair':
+                    manage_pairs = self._manage_pairs() 
+                    if manage_pairs: # we have to close trade
+                        orders.append(Order('PINA_COLADAS', pina_bid-1, -state.position['PINA_COLADAS'])) # SELL OUR PINAS at bid
+                        orders.append(Order('COCONUTS', coco_bid+1, -state.position['COCONUTS'])) # BUY OUR COCOS at ask
+                        self.trade_active == 'Neutral'
+                # check if we are short a pair already, if we are not short a pair and have a signal, we short!       
+                elif trade_pairs == False and (self.trade_active == 'Neutral' or self.trade_active == 'Long Pair'):
+                    orders.append(Order('PINA_COLADAS', pina_bid-1, pina_short_quant))
+                    orders.append(Order('COCONUTS', coco_ask+1, coco_long_quant))
+                    self.trade_active == 'Short Pair' # update if we are in trade or not
+                elif self.trade_active == 'Short Pair':
+                    manage_pairs = self._manage_pairs()
+                    if manage_pairs: # we have to close trade if true
+                        orders.append(Order('PINA_COLADAS', pina_ask + 1, -state.position['PINA_COLADAS'])) # BUY OUR PINAS at ask
+                        orders.append(Order('COCONUTS', coco_bid - 1, -state.position['COCONUTS'])) # SELL OUR COCOS at bid
+                        self.trade_active == 'Neutral'
+
+            else:
+
+                acceptable_bid_cross, acceptable_ask_cross, acceptable_bid_cross_vol_raw, acceptable_ask_cross_vol_raw = \
+                    self.get_cross_book_prices(state, product, fair_prices, bullish)
+                # the volumes for crossing the book might be out of bounds, ie ask for 5 when we're already position -20
+                # use get acceptable cross volume to get max volumes we can place
+                acceptable_bid_cross_vol, acceptable_ask_cross_vol = \
+                    self._get_acceptable_cross_volume(state, product,
+                                                    acceptable_bid_cross_vol_raw, acceptable_ask_cross_vol_raw)
+                # Place cross orders
+                if acceptable_bid_cross_vol != 0:
+                    orders.append(Order(product, acceptable_bid_cross, acceptable_bid_cross_vol))
+                if acceptable_ask_cross_vol != 0:
+                    orders.append(Order(product, acceptable_ask_cross, acceptable_ask_cross_vol))
 
 
-            # get acceptable market making bid ask
-            acceptable_bid, acceptable_ask = self._get_mm_prices(state, product, fair_prices, bullish)
-            # get quantities to place orders
-            bid_mm_quantity, ask_mm_quantity = self._get_acceptable_mm_volume(state, product,
-                                                                              acceptable_bid_cross_vol,
-                                                                              acceptable_ask_cross_vol)
-            # place MM ordersorders
-            orders.append(Order(product, acceptable_bid, bid_mm_quantity))
-            orders.append(Order(product, acceptable_ask, ask_mm_quantity))
+                # get acceptable market making bid ask
+                acceptable_bid, acceptable_ask = self._get_mm_prices(state, product, fair_prices, bullish)
+                # get quantities to place orders
+                bid_mm_quantity, ask_mm_quantity = self._get_acceptable_mm_volume(state, product,
+                                                                                acceptable_bid_cross_vol,
+                                                                                acceptable_ask_cross_vol)
+                # place MM ordersorders
+                orders.append(Order(product, acceptable_bid, bid_mm_quantity))
+                orders.append(Order(product, acceptable_ask, ask_mm_quantity))
             result[product] = orders
+
+
         print('------------------------------------')
         return result
