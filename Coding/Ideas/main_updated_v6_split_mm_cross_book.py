@@ -336,7 +336,7 @@ class Trader:
 
             elif spread <= 2:
                 # l1 ratio adjustment
-                ratio = l1_bid / l1_ask
+                ratio = state.order_depths[product].buy_orders[l1_bid] / state.order_depths[product].sell_orders[l1_ask]
                 if ratio > 1:
                     fair_value += 1
                 else:
