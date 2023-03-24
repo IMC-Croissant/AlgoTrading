@@ -10,7 +10,7 @@ import json
 class Trader:
     _history = pd.DataFrame(columns=['PEARLS', 'BANANAS', 'PINA_COLADAS', 'COCONUTS']) # gets replaced in first iteration
 
-    product_limits = {'PEARLS': 20, 'BANANAS': 20, 'PINA_COLADAS': 600, 'COCONUTS': 300}
+    product_limits = {'PEARLS': 20, 'BANANAS': 20, 'PINA_COLADAS': 300, 'COCONUTS': 600}
 
     def get_max_quantity(self, state: TradingState, product: str): 
         current_volume = 0
@@ -30,8 +30,9 @@ class Trader:
         prod_ask = min(state.order_depths[product].sell_orders)
         prod_bid = max(state.order_depths[product].buy_orders)
         return (prod_ask + prod_bid)/2
-    def get_sma(self, list_, sma) -> float:
-        sma_ = list_[-sma:]
+    def get_sma(self, array: np.array, sma: int) -> float:
+        sma_ = np.average(array[-sma:])
+        return sma
     
 ## --------------------------- Start Pairs ---------------------- ## 
     # Pairs Globals
@@ -58,9 +59,9 @@ class Trader:
 
         # get the ma and signal
         if len(self.ratio_g) > 300:
-            ma300 = np.average(self.ratio_g[-300:])
+            ma300 = np.average(self.ratio_g[-400:])
             ma100 = np.average(self.ratio_g[-100:])
-            std_300 = np.std(self.ratio_g[-300:])
+            std_300 = np.std(self.ratio_g[-400:])
             zscore_300_100 = (ma100 - ma300)/std_300 # our signal
         
             if zscore_300_100 > 1: # short the pair: long pina, short coco
@@ -131,7 +132,7 @@ class Trader:
         if bool(state.position):
             if product in state.position.keys():
                 current_volume = state.position[product]
-        limits = {'PEARLS': 20, 'BANANAS': 20, 'PINA_COLADAS': 600, 'COCONUTS': 300}
+        limits = {'PEARLS': 20, 'BANANAS': 20, 'PINA_COLADAS': 300, 'COCONUTS': 300}
         max_long_position = limits[product] - current_volume
         max_short_position = -limits[product] - current_volume
 
