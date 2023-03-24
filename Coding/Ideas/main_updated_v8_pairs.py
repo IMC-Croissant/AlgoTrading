@@ -241,7 +241,7 @@ class Trader:
                 acceptable_ask = fair_value + pillow * alpha + skew
                 acceptable_bid = fair_value - pillow * alpha + skew
             elif spread <= 2:
-                ratio = l1_bid / l1_ask
+                ratio = state.order_depths[product].buy_orders[l1_bid] / state.order_depths[product].sell_orders[l1_ask]
                 if ratio > 1:
                     fair_value += 1
                 else:
