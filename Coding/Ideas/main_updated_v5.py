@@ -30,7 +30,8 @@ class Trader:
         prod_ask = min(state.order_depths[product].sell_orders)
         prod_bid = max(state.order_depths[product].buy_orders)
         return (prod_ask + prod_bid)/2
-    
+    def get_sma(self, list_, sma) -> float:
+        sma_ = list_[-sma:]
     
 ## --------------------------- Start Pairs ---------------------- ## 
     # Pairs Globals
@@ -38,8 +39,8 @@ class Trader:
     # def Short Pair short pina, long coco
     pc_ratio_mean = 1.8732241724483873
     pc_ratio_std = 0.0030937512917090376
-    ratio_norm_g = []
-    ratio_g = [] 
+    ratio_norm_g = np.array([])
+    ratio_g = np.array([])
     zscore_300_100_g = 0
     trade_active = 'Neutral' # continuosly updated as 'Long Pair' or 'Short Pair' or 'Neutral' to determine if currently long or short a pair
     # Trade pairs strategy 
@@ -52,14 +53,14 @@ class Trader:
         # get the price ratio
         ratio = pina_mid/coco_mid
         ratio_norm = (ratio - self.pc_ratio_mean)/self.pc_ratio_std
-        self.ratio_g.append(ratio)
-        self.ratio_norm_g.append(ratio_norm) # append to list of current ratio_norms
+        self.ratio_g = np.append(self.ratio_g, ratio)
+        self.ratio_norm_g = np.append(self.ratio_norm_g,ratio_norm) # append to list of current ratio_norms
 
         # get the ma and signal
         if len(self.ratio_g) > 300:
-            ma300 = self.ratio_g.rolling(window = 300).mean()
-            ma100 = self.ratio_g.rolling(window = 100).mean()
-            std_300 = self.ratio_g.rolling(window = 300).std()
+            ma300 = np.average(self.ratio_g[-300:])
+            ma100 = np.average(self.ratio_g[-100:])
+            std_300 = np.std(self.ratio_g[-300:])
             zscore_300_100 = (ma100 - ma300)/std_300 # our signal
         
             if zscore_300_100 > 1: # short the pair: long pina, short coco
