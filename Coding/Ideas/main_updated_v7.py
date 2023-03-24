@@ -202,7 +202,6 @@ class Trader:
 
         #TODO Include bollingers band
         if product == "BANANAS":
-
             if spread > 2:
                 pillow = spread / 2
                 alpha, skew = 0.8, 0
@@ -213,7 +212,6 @@ class Trader:
                 #    alpha = 1
                 #else:
                 #    alpha = 1.5
-
                 acceptable_ask = fair_value + pillow * alpha + skew
                 acceptable_bid = fair_value - pillow * alpha + skew
             elif spread <= 2:
