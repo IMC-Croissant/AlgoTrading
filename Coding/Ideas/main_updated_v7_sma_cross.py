@@ -8,24 +8,38 @@ import numpy as np
 class Trader:
     _history = pd.DataFrame(columns=['PEARLS', 'BANANAS', 'PINA_COLADAS', 'COCONUTS']) # gets replaced in first iteration
     _buy_indicator = {'PINA_COLADAS': False, 'COCONUTS': False}
-    _already_bought = {'PINA_COLADAS': False, 'COCONUTS': False}
     _sell_indicator = {'PINA_COLADAS': False, 'COCONUTS': False}
-    _already_sold = {'PINA_COLADAS': False, 'COCONUTS': False}
 
     def _get_ewm_values_and_indicator(self, state: TradingState, product: str) -> bool:
         """Computes EWM5, EWM12, EWM26, MACD and signaling."""
+        def sma_cross_indicator(self, state: TradingState, product: str, history_product, sma_low, sma_high) -> None:
+            """
+            Calculate SMA
+            """
+            if state.timestamp > sma_high * 100:
+                sma_low = history_product.iloc[-sma_low:].mean()
+                sma_high = history_product.iloc[-sma_high:].mean()
+            if sma_low != -1 and sma_high != -1:
+                if sma_low > sma_high:
+                    self._sell_indicator[product] = False
+                    self._buy_indicator[product] = True
+                elif sma_low < sma_high:
+                    self._buy_indicator[product] = False
+                    self._sell_indicator[product] = True
+
         history_product = self._history[product]
         current_mid_price = history_product[state.timestamp]
 
         bullish = -1
         ewm_5, ewm_26, signal, macd = -1, -1, -1, -1
         ewm_8 = -1
-        sma_90 = -1
-
+        sma_20, sma_50, sma_90 = -1, -1, -1
+        sma_low, sma_high = -1, -1
         ewm_5 = history_product.ewm(span=5, adjust=False).mean()[state.timestamp]
-        std_5 = history_product.ewm(span=5, adjust=False).std()[state.timestamp]
         ewm_8 = history_product.ewm(span=8, adjust=False).mean()[state.timestamp]
 
+
+        # For ewm and MACD calculations
         if state.timestamp > 26 * 100:
             span_12 = history_product.ewm(span=12, adjust=False).mean()
             span_26 = history_product.ewm(span=26, adjust=False).mean()
@@ -38,44 +52,32 @@ class Trader:
         if state.timestamp > 90 * 100:
             sma_90 = history_product.ewm(span=90).mean()[state.timestamp]
 
-        if product in ('PINA_COLADAS', 'COCONUTS'):
+
+        # USING MACD
+        #if product in ('PINA_COLADAS', 'COCONUTS'):
+        #    if signal < macd: # buy signal
+        #        self._sell_indicator[product] = False
+        #        self._buy_indicator[product] = True
+        #    elif signal > macd: # sell signal
+        #        self._buy_indicator[product] = False
+        #        self._sell_indicator[product] = True
+        #    print("sell indicator for {} {}".format(
+        #        product, self._sell_indicator[product]))
+        # USING SMA cross
+        if product == 'PINA_COLADAS':
+            # For SMA calculations
+            sma_cross_indicator(self, state, product, history_product, 15, 40)
+        if product  == 'COCONUTS':
+            sma_cross_indicator(self, state, product, history_product, 20, 50)
+        if product == "BANANAS":
+            pass
+
+        if product == 'PINA_COLADAS':
+            values = [ewm_5, macd, signal, sma_90]
+        elif product == 'COCONUTS':
             values = [ewm_5, macd, signal, sma_90]
         else:
             values = [ewm_8, macd, signal, sma_90]
-
-        if product in ('PINA_COLADAS', 'COCONUTS'):
-            bought_product = self._already_bought[product]
-            sold_product = self._already_sold[product]
-
-            if signal < macd: # buy signal
-                self._sell_indicator[product] = False
-                if not bought_product:
-                    self._buy_indicator[product] = True
-                    self._already_bought[product] = True
-                    self._already_sold[product] = False
-                else:
-                    self._buy_indicator[product] = False
-            elif signal > macd: # sell signal
-                self._buy_indicator[product] = False
-                if not sold_product:
-                    self._sell_indicator[product] = True
-                    self._already_sold[product] = True
-                    self._already_bought[product] = False
-                else:
-                    self._sell_indicator[product] = False
-
-            print("sell indicator for {} {}".format(
-                product, self._sell_indicator[product]))
-
-        if product == "BANANAS":
-            if signal < macd: # bullish
-                bullish = True
-            elif signal > macd:
-                bullish = False
-
-        if product == "PEARLS":
-            pass
-
         # print("MACD indicator is bullish {} for {}".format(bullish, product))
         return values, bullish
 
@@ -91,7 +93,7 @@ class Trader:
         if bool(state.position):
             if product in state.position.keys():
                 current_volume = state.position[product]
-        limits = {'PEARLS': 20, 'BANANAS': 20, 'PINA_COLADAS': 600, 'COCONUTS': 300}
+        limits = {'PEARLS': 20, 'BANANAS': 20, 'PINA_COLADAS': 300, 'COCONUTS': 600}
         max_long_position = limits[product] - current_volume
         max_short_position = -limits[product] - current_volume
 
@@ -150,21 +152,6 @@ class Trader:
         if product == "PEARLS":
             # get sma_90
             fair_value = fair_prices[-1] if fair_prices[-1] > -1 else 10000
-            #fair_value = 10000
-            # still not crossing the books
-            #if spread > 3:
-            #    if isinstance(bullish, bool) and bullish:
-            #        acceptable_bid = l1_bid + 1
-            #        acceptable_ask = l1_ask
-            #    elif isinstance(bullish, bool) and not bullish:
-            #        acceptable_bid = l1_bid
-            #        acceptable_ask = l1_ask - 1
-            #    else:
-            #        acceptable_bid = l1_bid
-            #        acceptable_ask = l1_ask
-            #elif spread <= 3:
-            # crossing the book
-
             if l3_bid > fair_value:
                 acceptable_ask = l3_bid
             elif l2_bid > fair_value:
@@ -183,25 +170,18 @@ class Trader:
             else:
                 acceptable_bid = 10000 - (spread / 2)*0.8
 
-        if product == "COCONUTS" or product == "PINA_COLADAS":
-            if isinstance(bullish, bool) and bullish:
-                # not crossing the books
-                # I'm not relying on high frequency
-                # but in the good deals provided by the MACD signaling
-                # the acceptable prices are adjusted to make sure
-                # the bots choose our orders
-                # TODO optimize
-                acceptable_ask = fair_value + (spread / 4)
-                acceptable_bid = fair_value - (spread / 4)
-            elif isinstance(bullish, bool) and not bullish:
-                acceptable_ask = fair_value + (spread / 4)
-                acceptable_bid = fair_value - (spread / 4)
-            else:
-                acceptable_ask = fair_value + (spread / 4)
-                acceptable_bid = fair_value - (spread / 4)
+        elif product == "COCONUTS" or product == "PINA_COLADAS":
+            if self._buy_indicator[product]:
+                acceptable_bid = fair_value - 1
+            elif self._sell_indicator[product]:
+                acceptable_ask = fair_value + 1
+            #else:
+            #    acceptable_ask = fair_value + (spread /2 *.8)
+            #    acceptable_bid = fair_value - (spread /2 *.8)
 
-        #TODO Include bollingers band
-        if product == "BANANAS":
+
+        elif product == "BANANAS":
+
             if spread > 2:
                 pillow = spread / 2
                 alpha, skew = 0.8, 0
@@ -212,6 +192,7 @@ class Trader:
                 #    alpha = 1
                 #else:
                 #    alpha = 1.5
+
                 acceptable_ask = fair_value + pillow * alpha + skew
                 acceptable_bid = fair_value - pillow * alpha + skew
             elif spread <= 2:
@@ -299,6 +280,7 @@ class Trader:
             buy_quantity, sell_quantity = self._get_acceptable_quantity(
                     state, product, bullish)
             # if pina_colada or coconuts, place orders if neccesary
+
             if product in self._buy_indicator.keys():
                 buy_product = self._buy_indicator[product]
                 sell_product = self._sell_indicator[product]
