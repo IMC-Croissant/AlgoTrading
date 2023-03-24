@@ -10,7 +10,7 @@ import json
 class Trader:
     _history = pd.DataFrame(columns=['PEARLS', 'BANANAS', 'PINA_COLADAS', 'COCONUTS']) # gets replaced in first iteration
 
-    product_limits = {'PEARLS': 20, 'BANANAS': 20, 'PINA_COLADAS': 300, 'COCONUTS': 600}
+    product_limits = {'PEARLS': 20, 'BANANAS': 20, 'PINA_COLADAS': 600, 'COCONUTS': 300}
 
     def get_max_quantity(self, state: TradingState, product: str): 
         current_volume = 0
