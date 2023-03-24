@@ -12,7 +12,38 @@ class Trader:
 
     product_limits = {'PEARLS': 20, 'BANANAS': 20, 'PINA_COLADAS': 300, 'COCONUTS': 600}
 
+    def average(self, lst):
+        return sum(lst) / len(lst)
+    pina_mid_g = []
+    coco_mid_g = []
 
+    def atr(self, prices: List[float], periods): #prices will just be our mid price
+        tr = [max(prices[i + 1] - prices[i], abs(prices[i + 1] - prices[i - 1]), prices[i] - prices[i - 1]) for i in range(1, len(prices))]
+        atr = [self.average(tr[:periods])]
+        for i in range(periods, len(prices) - 1):
+            atr.append((atr[-1] * (periods - 1) + tr[i - periods + 1]) / periods)
+        return atr
+    def super_trend(self, prices: List[float], periods: int = 7, multiplier: float = 3.0) -> Dict[str, List[float]]:
+        """
+        Calculates the SuperTrend indicator using the given price data, the specified number of periods, and the specified multiplier.
+        Returns a dictionary containing the SuperTrend values and the trend direction (+1 for bullish and -1 for bearish).
+        """
+        atr_values = self.atr(prices, periods)
+        hl2 = [(prices[i] + prices[i - 1]) / 2 for i in range(1, len(prices))]
+        upper_band = [0.0] * (periods - 1) + [hl2[periods - 1] + multiplier * atr_values[0]]
+        lower_band = [0.0] * (periods - 1) + [hl2[periods - 1] - multiplier * atr_values[0]]
+        trend = [0.0] * (periods - 1) + [1 if prices[periods - 1] > lower_band[periods - 1] else -1]
+        for i in range(periods, len(prices) - 1):
+            atr_value = atr_values[i - periods]
+            upper_band.append(min(hl2[i], upper_band[-1] if trend[-1] == 1 else lower_band[-1]) + multiplier * atr_value)
+            lower_band.append(max(hl2[i], lower_band[-1] if trend[-1] == -1 else upper_band[-1]) - multiplier * atr_value)
+            if prices[i] > lower_band[-1]:
+                trend.append(1)
+            elif prices[i] < upper_band[-1]:
+                trend.append(-1)
+            else:
+                trend.append(1 if trend[-1] == 1 else -1)
+        return {'super_trend': upper_band, 'trend': trend}
     def get_max_quantity(self, state: TradingState, product: str): 
         current_volume = 0
         if bool(state.position): 
@@ -225,7 +256,7 @@ class Trader:
                 acceptable_bid = 10000 - (spread / 2)*0.8
 
         #TODO Include bollingers band
-        if product == "BANANAS" or product == 'PINA_COLADAS' or product == 'COCONUTS':
+        if product == "BANANAS":
 
             if spread > 2:
                 pillow = spread / 2
@@ -313,6 +344,8 @@ class Trader:
         # print("current data ", self._history)
 
         trade_pairs = self._trade_pairs(state) # boolean if we trade, -1 if we dont.
+        self.coco_mid_g.append(self.get_mid('COCONUTS'))
+        self.pina_mid_g.append(self.get_mid('PINA_COLADAS'))
 
         for product in state.order_depths.keys():
 
@@ -322,7 +355,7 @@ class Trader:
             fair_prices, bullish = self._get_ewm_values_and_indicator(
                     state, product)
             
-            # pairs trading
+            # sUPER TREND
             if product == 'PINA_COLADAS' or product == 'COCONUTS': 
 
                 # set quantities and prices that we may trade
@@ -332,31 +365,12 @@ class Trader:
                 pina_bid, pina_ask = self.get_l1(state, 'PINA_COLADAS')
                 coco_bid, coco_ask = self.get_l1(state, 'COCONUTS')
 
-                # check if we are long pair already, if we are not and have signal to long pair, we long!
-                if trade_pairs == True and (self.trade_active == 'Neutral' or self.trade_active == 'Short Pair'):   
-                    orders.append(Order('PINA_COLADAS', pina_ask+1, pina_long_quant))
-                    orders.append(Order('COCONUTS', coco_bid-1, coco_short_quant))
-                    self.trade_active == 'Long Pair' # update if we are in trade or not 
-                # check if we must close trade
-                elif self.trade_active == 'Long Pair':
-                    manage_pairs = self._manage_pairs() 
-                    if manage_pairs: # we have to close trade
-                        orders.append(Order('PINA_COLADAS', pina_bid-1, -state.position['PINA_COLADAS'])) # SELL OUR PINAS at bid
-                        orders.append(Order('COCONUTS', coco_bid+1, -state.position['COCONUTS'])) # BUY OUR COCOS at ask
-                        self.trade_active == 'Neutral'
-                
-                # check if we are short a pair already, if we are not short a pair and have a signal, we short!       
-                elif trade_pairs == False and (self.trade_active == 'Neutral' or self.trade_active == 'Long Pair'):
-                    orders.append(Order('PINA_COLADAS', pina_bid-1, pina_short_quant))
-                    orders.append(Order('COCONUTS', coco_ask+1, coco_long_quant))
-                    self.trade_active == 'Short Pair' # update if we are in trade or not
-                # check if we must close trade
-                elif self.trade_active == 'Short Pair':
-                    manage_pairs = self._manage_pairs()
-                    if manage_pairs: # we have to close trade if true
-                        orders.append(Order('PINA_COLADAS', pina_ask + 1, -state.position['PINA_COLADAS'])) # BUY OUR PINAS at ask
-                        orders.append(Order('COCONUTS', coco_bid - 1, -state.position['COCONUTS'])) # SELL OUR COCOS at bid
-                        self.trade_active == 'Neutral'
+                if len(self.coco_mid_g) > 10:
+                    my_super = self.super_trend(self.coco_mid_g, 7, 3.0)
+                    my_super['super_trend']
+
+
+
             else:
                 acceptable_bid, acceptable_ask = self._get_acceptable_price(
                     state, product, fair_prices, bullish)

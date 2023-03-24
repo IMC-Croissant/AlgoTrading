@@ -10,6 +10,10 @@ class Trader:
     _buy_indicator = {'PINA_COLADAS': False, 'COCONUTS': False}
     _sell_indicator = {'PINA_COLADAS': False, 'COCONUTS': False}
 
+    def get_l1(self, state: TradingState, product: str): 
+        prod_ask = min(state.order_depths[product].sell_orders)
+        prod_bid = max(state.order_depths[product].buy_orders)
+        return prod_bid, prod_ask
     def _get_ewm_values_and_indicator(self, state: TradingState, product: str) -> bool:
         """Computes EWM5, EWM12, EWM26, MACD and signaling."""
         def sma_cross_indicator(self, state: TradingState, product: str, history_product, sma_low, sma_high) -> None:
@@ -172,9 +176,9 @@ class Trader:
 
         elif product == "COCONUTS" or product == "PINA_COLADAS":
             if self._buy_indicator[product]:
-                acceptable_bid = fair_value - 1
+                acceptable_bid = l1_ask + 1
             elif self._sell_indicator[product]:
-                acceptable_ask = fair_value + 1
+                acceptable_ask = l1_bid - 1
             #else:
             #    acceptable_ask = fair_value + (spread /2 *.8)
             #    acceptable_bid = fair_value - (spread /2 *.8)
