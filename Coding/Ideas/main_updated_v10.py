@@ -258,9 +258,9 @@ class Trader:
                 # the bots choose our orders
                 # TODO optimize
                 acceptable_ask = fair_value + (spread / 4)
-                acceptable_bid = fair_value
+                acceptable_bid = fair_value - (spread / 8)
             elif isinstance(bullish, bool) and not bullish:
-                acceptable_ask = fair_value
+                acceptable_ask = fair_value + (spread / 8)
                 acceptable_bid = fair_value - (spread / 4)
             else:
                 acceptable_ask = fair_value
