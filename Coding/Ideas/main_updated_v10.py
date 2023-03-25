@@ -46,8 +46,6 @@ class Trader:
         if state.timestamp > 5 * 100:
             ewm_5 = history_product.ewm(span=5, adjust=False).mean()[state.timestamp]
             std_5 = history_product.ewm(span=5, adjust=False).std()[state.timestamp]
-            print("printing the values")
-            print(ewm_5, std_5)
 
         if state.timestamp > 26 * 100:
             ewm_8 = history_product.ewm(span=8, adjust=False).mean()[state.timestamp]
@@ -66,6 +64,7 @@ class Trader:
 
 
         products_to_choose = [
+                'BERRIES',
                 'PINA_COLADAS',
                 'COCONUTS',
                 'DIVING_GEAR']
@@ -124,8 +123,8 @@ class Trader:
                 else:
                     self._sell_indicator[product] = False
 
-            print("sell indicator for {} {}".format(
-                product, self._sell_indicator[product]))
+            # print("sell indicator for {} {}".format(
+            #     product, self._sell_indicator[product]))
 
         if product in ("BANANAS", "BERRIES") or product in products_to_choose:
             if signal < macd: # bullish
@@ -134,8 +133,6 @@ class Trader:
                 bullish = False
 
         # print("MACD indicator is bullish {} for {}".format(bullish, product))
-        # print(product)
-        # print(values)
         return values, bullish
 
     def _get_acceptable_quantity(
@@ -153,10 +150,10 @@ class Trader:
         limits = {
                 'PEARLS': 20,
                 'BANANAS': 20,
-                'PINA_COLADAS': 300, # 600
-                'COCONUTS': 300, # 300
-                'BERRIES': 250, # 250
-                'DIVING_GEAR': 50, # 50
+                'PINA_COLADAS': 200, # 600
+                'COCONUTS': 150, # 300
+                'BERRIES': 50, # 250
+                'DIVING_GEAR': 20, # 50
                 }
         max_long_position = limits[product] - current_volume
         max_short_position = -limits[product] - current_volume
@@ -165,8 +162,8 @@ class Trader:
         sell_volume = max(-limits[product], max_short_position)
 
 
-        print("acceptable buy vol {} sell vol {} product {}".format(
-            buy_volume, sell_volume, product))
+        # print("acceptable buy vol {} sell vol {} product {}".format(
+        #     buy_volume, sell_volume, product))
 
         return buy_volume, sell_volume
 
@@ -212,7 +209,6 @@ class Trader:
         spread = l1_ask - l1_bid
 
         fair_value = fair_prices[0]
-        print(fair_prices[-1])
         if product == "PEARLS":
             # get sma_90
             fair_value = fair_prices[-1] if fair_prices[-1] > -1 else 10000
@@ -250,6 +246,7 @@ class Trader:
                 acceptable_bid = 10000 - (spread / 2)*0.8
 
         if product in [
+                "BERRIES",
                 "COCONUTS",
                 "PINA_COLADAS",
                 "DIVING_GEAR"]:
@@ -270,7 +267,7 @@ class Trader:
                 acceptable_bid = fair_value
 
         #TODO Include bollingers band
-        if product in ("BANANAS", "BERRIES"):
+        if product in ("BANANAS"):
             if spread > 2:
                 pillow = spread / 2
                 alpha, skew = 0.8, 0

@@ -1,9 +1,10 @@
 from datamodel import Listing, OrderDepth, Trade, TradingState
 #from MM_momo import Trader
-from main_updated_v9_super_trend import Trader
+#from main_updated_v9_super_trend import Trader
+from main_updated_v7 import Trader
 import time
 
-timestamp = 60000
+timestamp = 600
 
 listings = {
 	"PEARLS": Listing(
@@ -25,6 +26,11 @@ listings = {
 		symbol = 'PINA_COLADAS', 
         product='PINA_COLADAS', 
         denomination='PINA_COLADAS',
+	),
+    'DIVING_GEAR': Listing(
+		symbol = 'DIVING_GEAR', 
+        product='DIVING_GEAR', 
+        denomination='DIVING_GEAR',
 	)
 }
 
@@ -42,6 +48,10 @@ order_depths = {
 		sell_orders={144: -5, 145: -8}
 	),
     "PINA_COLADAS": OrderDepth(
+		buy_orders={142: 3, 141: 5},
+		sell_orders={144: -5, 145: -8}
+	),
+    "DIVING_GEAR": OrderDepth(
 		buy_orders={142: 3, 141: 5},
 		sell_orders={144: -5, 145: -8}
 	),
@@ -85,7 +95,7 @@ position = {
 	"BANANAS": 0
 }
 
-observations = {}
+observations = {'DOLPHIN_SIGHTINGS': 1200}
 
 state = TradingState(
 	timestamp,
