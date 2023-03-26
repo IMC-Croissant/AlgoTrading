@@ -275,15 +275,17 @@ class Trader:
             else:
                 acceptable_bid = fair_value - (spread / 2)*0.8
 
-        if product in [
-            'PINA_COLADAS',
-            'COCONUTS',
-            'BERRIES',
-            'DIVING_GEAR',
-            'BAGUETTE',
-            'PICNIC_BASKET',
-            'DIP',
-            'UKULELE']:
+        spreads_dict = {
+                'PINA_COLADAS': spread / 6,
+                'COCONUTS': spread / 6,
+                'BERRIES': spread / 6,
+                'DIVING_GEAR': spread / 10,
+                'BAGUETTE': spread / 2,
+                'PICNIC_BASKET': spread / 2,
+                'DIP': spread / 6,
+                'UKULELE': spread / 2
+                }
+        if product in spreads_dict.keys():
 
             # crossing the book
             if l3_bid > fair_value:
@@ -298,9 +300,9 @@ class Trader:
             else:
                 if isinstance(bullish, bool) and bullish:
                     # TODO optimize
-                    acceptable_ask = fair_value + (spread / 6)
+                    acceptable_ask = fair_value + spreads_dict[product]
                 elif isinstance(bullish, bool) and not bullish:
-                    acceptable_ask = fair_value - (spread / 6)
+                    acceptable_ask = fair_value - spreads_dict[product]
                 else:
                     acceptable_ask = fair_value
 
@@ -317,9 +319,9 @@ class Trader:
                 if isinstance(bullish, bool) and bullish:
                     # the bots choose our orders
                     # TODO optimize
-                    acceptable_bid = fair_value + (spread / 6)
+                    acceptable_bid = fair_value + spreads_dict[product]
                 elif isinstance(bullish, bool) and not bullish:
-                    acceptable_bid = fair_value - (spread / 6)
+                    acceptable_bid = fair_value - spreads_dict[product]
                 else:
                     acceptable_bid = fair_value
 
@@ -328,13 +330,6 @@ class Trader:
             if spread > 2:
                 pillow = spread / 2
                 alpha, skew = 0.8, 0
-                #alpha setting
-                #if spread >= 6:
-                #    alpha = 0.8
-                #elif spread > 3 and spread < 6:
-                #    alpha = 1
-                #else:
-                #    alpha = 1.5
                 acceptable_ask = fair_value + pillow * alpha + skew
                 acceptable_bid = fair_value - pillow * alpha + skew
             elif spread <= 2:
