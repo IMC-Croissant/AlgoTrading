@@ -81,7 +81,7 @@ class Trader:
             ewm_5 = history_product.ewm(span=5, adjust=False).mean()[state.timestamp]
             std_5 = history_product.ewm(span=5, adjust=False).std()[state.timestamp]
 
-        if state.timestamp > 26 * 100:
+        if state.timestamp > 8 * 100:
             ewm_8 = history_product.ewm(span=8, adjust=False).mean()[state.timestamp]
 
         if state.timestamp > 26 * 100:
@@ -189,14 +189,14 @@ class Trader:
         limits = {
                 'PEARLS': 20,
                 'BANANAS': 20,
-                'PINA_COLADAS': 200, # 600
-                'COCONUTS': 150, # 300
+                'PINA_COLADAS': 200, # 300
+                'COCONUTS': 600, # 600
                 'BERRIES': 50, # 250
                 'DIVING_GEAR': 20, # 50
-                'BAGUETTE': 100, # 150
-                'PICNIC_BASKET': 50, # 70
-                'DIP': 200, # 300
-                'UKULELE': 50, # 70
+                'BAGUETTE': 150, # 150
+                'PICNIC_BASKET': 70, # 70
+                'DIP': 300, # 300
+                'UKULELE': 20, # 70
                 }
 
         max_long_position = limits[product] - current_volume
@@ -436,7 +436,7 @@ class Trader:
                 if buy_product or self._crossed_the_book_for_bid:
                     orders.append(Order(product, acceptable_bid, buy_quantity))
 
-                if sell_product or not self._crossed_the_book_for_ask:
+                if sell_product: #or not self._crossed_the_book_for_ask:
                     orders.append(Order(product, acceptable_ask, sell_quantity))
             else:
                 orders.append(Order(product, acceptable_bid, buy_quantity))
