@@ -64,6 +64,8 @@ class Trader:
             'DOLPHIN_SIGHTINGS': {"BUY": False, "SELL": False},
             }
 
+    _crossed_the_book_for_ask = False
+    _crossed_the_book_for_bid = False
     def _get_ewm_values_and_indicator(self, state: TradingState, product: str) -> bool:
         """Computes EWM5, EWM12, EWM26, MACD and signaling."""
         history_product = self._history[product]
@@ -262,7 +264,7 @@ class Trader:
             elif l1_bid > fair_value:
                 acceptable_ask = l1_bid
             else:
-                acceptable_ask = 10000 + (spread / 2)*0.8
+                acceptable_ask = fair_value + (spread / 2)*0.8
 
             if l3_ask < fair_value:
                 acceptable_bid = l3_ask
@@ -271,7 +273,7 @@ class Trader:
             elif l1_ask < fair_value:
                 acceptable_bid = l1_ask
             else:
-                acceptable_bid = 10000 - (spread / 2)*0.8
+                acceptable_bid = fair_value - (spread / 2)*0.8
 
         if product in [
             'PINA_COLADAS',
@@ -282,21 +284,44 @@ class Trader:
             'PICNIC_BASKET',
             'DIP',
             'UKULELE']:
-            if isinstance(bullish, bool) and bullish:
-                # not crossing the books
-                # I'm not relying on high frequency
-                # but in the good deals provided by the MACD signaling
-                # the acceptable prices are adjusted to make sure
-                # the bots choose our orders
-                # TODO optimize
-                acceptable_ask = fair_value + (spread / 2)
-                acceptable_bid = fair_value - (spread / 4)
-            elif isinstance(bullish, bool) and not bullish:
-                acceptable_ask = fair_value + (spread / 4)
-                acceptable_bid = fair_value - (spread / 2)
+
+            # crossing the book
+            if l3_bid > fair_value:
+                acceptable_ask = l3_bid
+                self._crossed_the_book_for_ask = True
+            elif l2_bid > fair_value:
+                acceptable_ask = l2_bid
+                self._crossed_the_book_for_ask = True
+            elif l1_bid > fair_value:
+                acceptable_ask = l1_bid
+                self._crossed_the_book_for_ask = True
             else:
-                acceptable_ask = fair_value
-                acceptable_bid = fair_value
+                if isinstance(bullish, bool) and bullish:
+                    # TODO optimize
+                    acceptable_ask = fair_value + (spread / 6)
+                elif isinstance(bullish, bool) and not bullish:
+                    acceptable_ask = fair_value - (spread / 6)
+                else:
+                    acceptable_ask = fair_value
+
+            if l3_ask < fair_value:
+                acceptable_bid = l3_ask
+                self._crossed_the_book_for_bid = True
+            elif l2_ask < fair_value:
+                acceptable_bid = l2_ask
+                self._crossed_the_book_for_bid = True
+            elif l1_ask < fair_value:
+                acceptable_bid = l1_ask
+                self._crossed_the_book_for_bid = True
+            else:
+                if isinstance(bullish, bool) and bullish:
+                    # the bots choose our orders
+                    # TODO optimize
+                    acceptable_bid = fair_value + (spread / 6)
+                elif isinstance(bullish, bool) and not bullish:
+                    acceptable_bid = fair_value - (spread / 6)
+                else:
+                    acceptable_bid = fair_value
 
         #TODO Include bollingers band
         if product in ("BANANAS"):
@@ -344,8 +369,8 @@ class Trader:
         acceptable_bid = math.ceil(acceptable_bid)
         acceptable_ask = math.floor(acceptable_ask)
 
-        print("acceptable bid {} ask {} product {}".format(
-            acceptable_bid, acceptable_ask, product))
+        # print("acceptable bid {} ask {} product {}".format(
+        #     acceptable_bid, acceptable_ask, product))
 
         return acceptable_bid, acceptable_ask
 
@@ -413,10 +438,10 @@ class Trader:
             if product in self._buy_indicator.keys():
                 buy_product = self._buy_indicator[product]
                 sell_product = self._sell_indicator[product]
-                if buy_product:
+                if buy_product or self._crossed_the_book_for_bid:
                     orders.append(Order(product, acceptable_bid, buy_quantity))
 
-                if sell_product:
+                if sell_product or not self._crossed_the_book_for_ask:
                     orders.append(Order(product, acceptable_ask, sell_quantity))
             else:
                 orders.append(Order(product, acceptable_bid, buy_quantity))
