@@ -13,17 +13,49 @@ class Trader:
                 'PINA_COLADAS',
                 'COCONUTS',
                 'BERRIES',
-                'DIVING_GEAR'])
+                'DIVING_GEAR',
+                'BAGUETTE',
+                'PICNIC_BASKET',
+                'DIP',
+                'UKULELE'])
     _history_observation = pd.DataFrame(
             columns=['DOLPHIN_SIGHTINGS'])
-    _buy_indicator = {'PINA_COLADAS': False, 'COCONUTS': False,
-            'BERRIES': False, 'DIVING_GEAR': False}
-    _already_bought = {'PINA_COLADAS': False, 'COCONUTS': False,
-            'BERRIES': False, 'DIVING_GEAR': False}
-    _sell_indicator = {'PINA_COLADAS': False, 'COCONUTS': False,
-            'BERRIES': False, 'DIVING_GEAR': False}
-    _already_sold = {'PINA_COLADAS': False, 'COCONUTS': False,
-            'BERRIES': False, 'DIVING_GEAR': False}
+    _buy_indicator = {
+            'PINA_COLADAS': False,
+            'COCONUTS': False,
+            'BERRIES': False,
+            'DIVING_GEAR': False,
+            'BAGUETTE': False,
+            'PICNIC_BASKET': False,
+            'DIP': False,
+            'UKULELE': False}
+    _already_bought = {
+            'PINA_COLADAS': False,
+            'COCONUTS': False,
+            'BERRIES': False,
+            'DIVING_GEAR': False,
+            'BAGUETTE': False,
+            'PICNIC_BASKET': False,
+            'DIP': False,
+            'UKULELE': False}
+    _sell_indicator = {
+            'PINA_COLADAS': False,
+            'COCONUTS': False,
+            'BERRIES': False,
+            'DIVING_GEAR': False,
+            'BAGUETTE': False,
+            'PICNIC_BASKET': False,
+            'DIP': False,
+            'UKULELE': False}
+    _already_sold = {
+            'PINA_COLADAS': False,
+            'COCONUTS': False,
+            'BERRIES': False,
+            'DIVING_GEAR': False,
+            'BAGUETTE': False,
+            'PICNIC_BASKET': False,
+            'DIP': False,
+            'UKULELE': False}
 
     _observation_indicator = {
             'DOLPHIN_SIGHTINGS': {"BUY": False, "SELL": False},
@@ -64,10 +96,15 @@ class Trader:
 
 
         products_to_choose = [
-                'BERRIES',
-                'PINA_COLADAS',
-                'COCONUTS',
-                'DIVING_GEAR']
+            'PINA_COLADAS',
+            'COCONUTS',
+            'BERRIES',
+            'DIVING_GEAR',
+            'BAGUETTE',
+            'PICNIC_BASKET',
+            'DIP',
+            'UKULELE']
+
         products_observation = ['DOLPHIN_SIGHTINGS']
 
         if product in products_to_choose:
@@ -154,7 +191,12 @@ class Trader:
                 'COCONUTS': 150, # 300
                 'BERRIES': 50, # 250
                 'DIVING_GEAR': 20, # 50
+                'BAGUETTE': 100, # 150
+                'PICNIC_BASKET': 50, # 70
+                'DIP': 200, # 300
+                'UKULELE': 50, # 70
                 }
+
         max_long_position = limits[product] - current_volume
         max_short_position = -limits[product] - current_volume
 
@@ -212,21 +254,7 @@ class Trader:
         if product == "PEARLS":
             # get sma_90
             fair_value = fair_prices[-1] if fair_prices[-1] > -1 else 10000
-            #fair_value = 10000
-            # still not crossing the books
-            #if spread > 3:
-            #    if isinstance(bullish, bool) and bullish:
-            #        acceptable_bid = l1_bid + 1
-            #        acceptable_ask = l1_ask
-            #    elif isinstance(bullish, bool) and not bullish:
-            #        acceptable_bid = l1_bid
-            #        acceptable_ask = l1_ask - 1
-            #    else:
-            #        acceptable_bid = l1_bid
-            #        acceptable_ask = l1_ask
-            #elif spread <= 3:
             # crossing the book
-
             if l3_bid > fair_value:
                 acceptable_ask = l3_bid
             elif l2_bid > fair_value:
@@ -246,10 +274,14 @@ class Trader:
                 acceptable_bid = 10000 - (spread / 2)*0.8
 
         if product in [
-                "BERRIES",
-                "COCONUTS",
-                "PINA_COLADAS",
-                "DIVING_GEAR"]:
+            'PINA_COLADAS',
+            'COCONUTS',
+            'BERRIES',
+            'DIVING_GEAR',
+            'BAGUETTE',
+            'PICNIC_BASKET',
+            'DIP',
+            'UKULELE']:
             if isinstance(bullish, bool) and bullish:
                 # not crossing the books
                 # I'm not relying on high frequency
@@ -257,11 +289,11 @@ class Trader:
                 # the acceptable prices are adjusted to make sure
                 # the bots choose our orders
                 # TODO optimize
-                acceptable_ask = fair_value + (spread / 4)
-                acceptable_bid = fair_value - (spread / 8)
-            elif isinstance(bullish, bool) and not bullish:
-                acceptable_ask = fair_value + (spread / 8)
+                acceptable_ask = fair_value + (spread / 2)
                 acceptable_bid = fair_value - (spread / 4)
+            elif isinstance(bullish, bool) and not bullish:
+                acceptable_ask = fair_value + (spread / 4)
+                acceptable_bid = fair_value - (spread / 2)
             else:
                 acceptable_ask = fair_value
                 acceptable_bid = fair_value
