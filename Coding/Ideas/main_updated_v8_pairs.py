@@ -350,12 +350,12 @@ class Trader:
                 # Make sure long_pair_quant will not violate position limits
                 if (state.position['COCONUTS'] + 2*long_pair_quant >= 600) or \
                     (state.position['PINA_COLADAS'] + long_pair_quant >= 300):
-                    long_pair_quant = min(300-state.position['PINA_COLADAS'], math.floor((600-state.position['COCONUTS'])/2))
+                    long_pair_quant = min(300-state.position['PINA_COLADAS'], math.floor((600-state.position['COCONUTS'])/2), long_pair_quant)
                 short_pair_quant = min(pina_l1bid_quant, -math.floor(coco_l1ask_quant/2))
                 # Make sure short_pair_quant will not violate position limits
                 if (state.position['COCONUTS'] - 2*short_pair_quant <= -600) or \
                     (state.position['PINA_COLADAS'] - short_pair_quant <= -300):
-                    short_pair_quant = min(abs(-300-state.position['PINA_COLADAS']), abs(math.ceil((-600-state.position['COCONUTS'])/2)))
+                    short_pair_quant = min(abs(-300-state.position['PINA_COLADAS']), abs(math.ceil((-600-state.position['COCONUTS'])/2)), short_pair_quant)
 
                 # check if we are long pair already, if we are not and have signal to long pair, we long!
                 if trade_pairs == True: #and (self.trade_active == 'Neutral' or self.trade_active == 'Short Pair'): l1 from active trade might not be able to fill trade
