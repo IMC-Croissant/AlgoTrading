@@ -76,9 +76,9 @@ class Trader:
         #     std_300 = np.std(self.ratio_g[-400:])
         #     zscore_300_100 = (ma100 - ma300)/std_300 # our signal
     
-        if ratio > self._pc_ratio_mean + 1.8* self._pc_ratio_std: # short the pair: short pina, long coco
+        if ratio > self.pc_ratio_mean + 1.8* self.pc_ratio_std: # short the pair: short pina, long coco
             signal = False # false for short 
-        elif ratio < self._pc_ratio_mean - 1.8* self._pc_ratio_std:
+        elif ratio < self.pc_ratio_mean - 1.8* self.pc_ratio_std:
             signal = True # true for long
         # self.zscore_300_100_g  = zscore_300_100 # udate for exits
         return signal
