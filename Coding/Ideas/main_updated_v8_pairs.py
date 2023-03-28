@@ -49,6 +49,7 @@ class Trader:
     pc_ratio_std = 0.0030937512917090376
     ratio_norm_g = np.array([])
     ratio_g = np.array([])
+    cur_ratio = 1.875
     zscore_300_100_g = 0
     trade_active = 'Neutral' # continuosly updated as 'Long Pair' or 'Short Pair' or 'Neutral' to determine if currently long or short a pair
     # Trade pairs strategy 
@@ -65,25 +66,25 @@ class Trader:
         self.ratio_norm_g = np.append(self.ratio_norm_g,ratio_norm) # append to list of current ratio_norms
 
         # get the ma and signal
-        if len(self.ratio_g) > 300:
-            ma300 = np.average(self.ratio_g[-400:])
-            ma100 = np.average(self.ratio_g[-100:])
-            std_300 = np.std(self.ratio_g[-400:])
-            zscore_300_100 = (ma100 - ma300)/std_300 # our signal
-        
-            if ratio > 1.878: # short the pair: short pina, long coco
-                signal = False # false for short 
-            elif zscore_300_100 < 1.872: 
-                signal = True # true for long
-            self.zscore_300_100_g  = zscore_300_100 # udate for exits
+        # if len(self.ratio_g) > 300:
+        #     ma300 = np.average(self.ratio_g[-400:])
+        #     ma100 = np.average(self.ratio_g[-100:])
+        #     std_300 = np.std(self.ratio_g[-400:])
+        #     zscore_300_100 = (ma100 - ma300)/std_300 # our signal
+    
+        if ratio > 1.878: # short the pair: short pina, long coco
+            signal = False # false for short 
+        elif ratio < 1.872: 
+            signal = True # true for long
+        # self.zscore_300_100_g  = zscore_300_100 # udate for exits
         return signal
     
     def _manage_pairs(self) -> bool:
         closeTrade = False
-        if self.trade_active == 'Long Pair' and self.zscore_300_100_g < 0: # we are currently long a pair
+        if self.trade_active == 'Long Pair' and self.ratio_g < 0: # we are currently long a pair
             # must close trade
             closeTrade = True
-        if self.trade_active == 'Short Pair' and self.zscore_300_100_g > 0: 
+        if self.trade_active == 'Short Pair' and self.ratio_g > 0: 
             # must close trade
             closeTrade = True
         return closeTrade
@@ -327,10 +328,14 @@ class Trader:
 
             fair_prices, bullish = self._get_ewm_values_and_indicator(
                     state, product)
-            
+            pina_mid = self.get_mid(state, 'PINA_COLADAS')
+            coco_mid = self.get_mid(state, 'COCONUTS')
+
+            # get the price ratio
+            self.ratio_g = pina_mid/coco_mid
             # pairs trading
             if product == 'PINA_COLADAS' or product == 'COCONUTS': 
-
+                
                 # set quantities and prices that we may trade
                 pina_l1bid_quant, pina_l1ask_quant = self.get_l1_quantity(state, 'PINA_COLADAS')
                 coco_l1bid_quant, coco_l1ask_quant = self.get_l1_quantity(state, 'COCONUTS')
