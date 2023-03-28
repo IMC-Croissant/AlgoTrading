@@ -334,6 +334,10 @@ class Trader:
                     state, product)
             # pairs trading
             if product == 'PINA_COLADAS': # or product == 'COCONUTS':  only have to do once for pina colads and coconuts
+                if "COCONUTS" not in state.positions:
+                    state.positions['BANANAS'] = 0
+                if "PINA_COLADAS" not in state.positions:
+                    state.positions['PINA_COLADAS'] = 0
                 trade_pairs = self._trade_pairs(state)
                 pina_mid = self.get_mid(state, 'PINA_COLADAS')
                 coco_mid = self.get_mid(state, 'COCONUTS')
