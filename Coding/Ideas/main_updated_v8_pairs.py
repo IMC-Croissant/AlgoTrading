@@ -71,9 +71,9 @@ class Trader:
             std_300 = np.std(self.ratio_g[-400:])
             zscore_300_100 = (ma100 - ma300)/std_300 # our signal
         
-            if zscore_300_100 > 1: # short the pair: short pina, long coco
+            if ratio > 1.878: # short the pair: short pina, long coco
                 signal = False # false for short 
-            elif zscore_300_100 < -1: 
+            elif zscore_300_100 < 1.872: 
                 signal = True # true for long
             self.zscore_300_100_g  = zscore_300_100 # udate for exits
         return signal
@@ -338,33 +338,37 @@ class Trader:
                 pina_bid, pina_ask = self.get_l1(state, 'PINA_COLADAS')
                 coco_bid, coco_ask = self.get_l1(state, 'COCONUTS')
 
-                long_pair_quant = min(pina_l1ask_quant, math.floor(coco_l1bid_quant/2))
-                short_pair_quant = min(pina_l1bid_quant, math.floor(coco_l1ask_quant/2))
+                long_pair_quant = min(-pina_l1ask_quant, math.floor(coco_l1bid_quant/2))
+                short_pair_quant = min(pina_l1bid_quant, -math.floor(coco_l1ask_quant/2))
                 # check if we are long pair already, if we are not and have signal to long pair, we long!
                 if trade_pairs == True and (self.trade_active == 'Neutral' or self.trade_active == 'Short Pair'):   
                     orders.append(Order('PINA_COLADAS', pina_ask, long_pair_quant))
                     orders.append(Order('COCONUTS', coco_bid, -round(1.87*long_pair_quant)))
-                    self.trade_active == 'Long Pair' # update if we are in trade or not 
+                    self.trade_active = 'Long Pair' # update if we are in trade or not 
                 # check if we must close trade
                 elif self.trade_active == 'Long Pair':
                     manage_pairs = self._manage_pairs() 
                     if manage_pairs: # we have to close trade
-                        orders.append(Order('PINA_COLADAS', pina_bid-1, -state.position['PINA_COLADAS'])) # SELL OUR PINAS at bid
-                        orders.append(Order('COCONUTS', coco_bid+1, -state.position['COCONUTS'])) # BUY OUR COCOS at ask
-                        self.trade_active == 'Neutral'
-                
+                        if bool(state.position):
+                            if product in state.position.keys():
+                                orders.append(Order('PINA_COLADAS', pina_bid-1, -state.position['PINA_COLADAS'])) # SELL OUR PINAS at bid
+                                orders.append(Order('COCONUTS', coco_bid+1, -state.position['COCONUTS'])) # BUY OUR COCOS at ask
+                                self.trade_active = 'Neutral'
+                        
                 # check if we are short a pair already, if we are not short a pair and have a signal, we short!       
                 elif trade_pairs == False and (self.trade_active == 'Neutral' or self.trade_active == 'Long Pair'):
                     orders.append(Order('PINA_COLADAS', pina_bid, -short_pair_quant))
                     orders.append(Order('COCONUTS', coco_ask, round(1.87*short_pair_quant)))
-                    self.trade_active == 'Short Pair' # update if we are in trade or not
+                    self.trade_active = 'Short Pair' # update if we are in trade or not
                 # check if we must close trade
                 elif self.trade_active == 'Short Pair':
                     manage_pairs = self._manage_pairs()
                     if manage_pairs: # we have to close trade if true
-                        orders.append(Order('PINA_COLADAS', pina_ask+1, -state.position['PINA_COLADAS'])) # BUY OUR PINAS at ask
-                        orders.append(Order('COCONUTS', coco_bid-1, -state.position['COCONUTS'])) # SELL OUR COCOS at bid
-                        self.trade_active == 'Neutral'
+                        if bool(state.position):
+                            if product in state.position.keys():
+                                orders.append(Order('PINA_COLADAS', pina_ask+1, -state.position['PINA_COLADAS'])) # BUY OUR PINAS at ask
+                                orders.append(Order('COCONUTS', coco_bid-1, -state.position['COCONUTS'])) # SELL OUR COCOS at bid
+                                self.trade_active = 'Neutral'
             # else:
             #     acceptable_bid, acceptable_ask = self._get_acceptable_price(
             #         state, product, fair_prices, bullish)
