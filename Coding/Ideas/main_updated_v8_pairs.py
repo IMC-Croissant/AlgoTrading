@@ -343,7 +343,7 @@ class Trader:
                 # check if we are long pair already, if we are not and have signal to long pair, we long!
                 if trade_pairs == True and (self.trade_active == 'Neutral' or self.trade_active == 'Short Pair'):   
                     orders.append(Order('PINA_COLADAS', pina_ask, long_pair_quant))
-                    orders.append(Order('COCONUTS', coco_bid, -round(1.87*2*long_pair_quant)))
+                    orders.append(Order('COCONUTS', coco_bid, -round(1.87*long_pair_quant)))
                     self.trade_active == 'Long Pair' # update if we are in trade or not 
                 # check if we must close trade
                 elif self.trade_active == 'Long Pair':
@@ -356,7 +356,7 @@ class Trader:
                 # check if we are short a pair already, if we are not short a pair and have a signal, we short!       
                 elif trade_pairs == False and (self.trade_active == 'Neutral' or self.trade_active == 'Long Pair'):
                     orders.append(Order('PINA_COLADAS', pina_bid, -short_pair_quant))
-                    orders.append(Order('COCONUTS', coco_ask, round(1.87*2*short_pair_quant)))
+                    orders.append(Order('COCONUTS', coco_ask, round(1.87*short_pair_quant)))
                     self.trade_active == 'Short Pair' # update if we are in trade or not
                 # check if we must close trade
                 elif self.trade_active == 'Short Pair':
